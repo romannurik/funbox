@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Link, Switch, Route } from "react-router-dom";
+import { BrowserRouter as Router, Redirect, Link, Switch, Route } from "react-router-dom";
 import { MathPlay } from "./pages/math/MathPlay";
 import { MathGame } from "./pages/math/MathGame";
 import { RobotGame } from "./pages/robot/RobotGame";
@@ -12,7 +12,8 @@ export function App() {
         <Route path="/mathgame" component={MathGame} />
         <Route path="/robot" component={RobotGame} />
         <Route path="/">
-          <div>
+          <Redirect to="/robot" />
+          {/* <div>
             Available in the funbox:
             <p>
               <Link to="/mathplay">Math blocks</Link>
@@ -23,7 +24,7 @@ export function App() {
             <p>
               <Link to="/robot">Robot programming game</Link>
             </p>
-          </div>
+          </div> */}
         </Route>
       </Switch>
     </Router>
