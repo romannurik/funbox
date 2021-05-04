@@ -1,0 +1,145 @@
+@mixin narrow {
+  @media only screen and (max-width: 600px) {
+    @content;
+  }
+}
+
+.main {
+  height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.levelPicker {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  margin: 16px 0;
+  flex: 0 0 auto;
+
+  button {
+    background-color: transparent;
+    padding: 8px;
+    color: #fff;
+    border: none;
+    appearance: none;
+    cursor: pointer;
+
+    &[disabled] {
+      opacity: 0.2;
+      cursor: default;
+    }
+  }
+}
+
+.gameUI {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 0;
+  padding: 40px;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+
+  @include narrow {
+    padding: 16px;
+    flex-direction: column;
+  }
+}
+
+.controlPanel {
+  width: 200px;
+  margin-right: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 0 0 auto;
+
+  @include narrow {
+    order: 2;
+    width: auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    overflow-x: scroll;
+    margin-right: 0;
+  }
+
+  button {
+    --color: #fff;
+    color: var(--color);
+    margin: 16px 0;
+    appearance: none;
+    font-family: Poppins;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 2px solid var(--color);
+    background-color: transparent;
+    width: 100%;
+    padding: 12px 16px;
+    cursor: pointer;
+
+    &.primary {
+      background-color: var(--color);
+      color: #000;
+    }
+
+    @include narrow {
+      margin: 0 12px;
+      flex-direction: row;
+    }
+  }
+
+  .goButton {
+    flex: 0 0 auto;
+    margin-left: 0;
+
+    @include narrow {
+      width: 90px;
+    }
+  }
+
+  .instruction {
+    display: flex;
+    align-items: center;
+    color: var(--color);
+    text-align: left;
+
+    @include narrow {
+      text-align: center;
+      flex-direction: column;
+    }
+
+    .instructionColor {
+      flex: 1 1 0;
+
+      @include narrow {
+        display: none;
+      }
+    }
+
+    .instructionValue {
+      display: inline-flex;
+    }
+  }
+}
+
+.gameBoardContainer {
+  display: flex;
+  flex: 1 1 0;
+  max-height: 100%;
+  position: relative;
+}
+
+.gameBoard {
+  max-width: 100%;
+  max-height: 100%;
+  margin: auto auto;
+  aspect-ratio: 1 / 1;
+}
+
+.flippedIcon {
+  transform: scaleX(-1);
+}
