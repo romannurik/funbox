@@ -11,12 +11,14 @@ const LEVELS = [
   import("./levels/01-intro/03"),
   import("./levels/01-intro/04"),
   import("./levels/01-intro/05"),
+  import("./levels/01-intro/06"),
   import("./levels/02-coins/01"),
   import("./levels/02-coins/02"),
   import("./levels/02-coins/03"),
-  import("./levels/7"),
-  import("./levels/8"),
-  import("./levels/9"),
+  import("./levels/03-walls/01"),
+  import("./levels/03-walls/02"),
+  import("./levels/04-turnaround/01"),
+  import("./levels/04-turnaround/02"),
 ];
 
 export function RobotGame() {

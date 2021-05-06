@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { roundRect } from "./canvas-util";
-import styles from "./RobotGame.module.scss";
-import { ReplyIcon, ArrowUpIcon } from "@primer/octicons-react";
-import { TurnAroundIcon } from "./MoreIcons";
+import { ArrowUpIcon, ReplyIcon } from "@primer/octicons-react";
 import cn from "classnames";
+import React, { useEffect, useRef, useState } from "react";
+import { roundRect } from "./canvas-util";
 import { Message } from "./Message";
+import { TurnAroundIcon } from "./MoreIcons";
+import styles from "./RobotGame.module.scss";
 
 const SPEED = 300;
 const COLORMAP = {
@@ -35,7 +35,7 @@ const ROTATIONS = {
 const CANVAS_MARGIN = 4;
 const CANVAS_SIZE = 800;
 
-export function Game({ level, onAdvanceToNextLevel, onCellClick }) {
+export function Game({ className, level, onAdvanceToNextLevel, onCellClick }) {
   let [running, setRunning] = useState(false);
   let [engineLevel, setEngineLevel] = useState(level);
   let [userProgram, setUserProgram] = useState({});
@@ -71,7 +71,7 @@ export function Game({ level, onAdvanceToNextLevel, onCellClick }) {
   }, [level]);
 
   return (
-    <div className={styles.gameUI}>
+    <div className={cn(styles.gameUI, className)}>
       <div className={styles.controlPanel}>
         {!levelCompleted && (
           <button
@@ -109,7 +109,7 @@ export function Game({ level, onAdvanceToNextLevel, onCellClick }) {
               }}
             >
               <span className={styles.instructionColor}>
-                {sentenceCase(color)}
+                {titleCase(color)}
               </span>
               <span className={styles.instructionValue}>
                 <ActionIcon size="36" />
@@ -145,7 +145,7 @@ function GameEngine({
   userProgram,
   running,
   onLevelCompleted,
-  onCellClick = () => {}
+  onCellClick = () => { }
 }) {
   let canvasRef = useRef();
   let engineState = useRef(null);
@@ -293,16 +293,16 @@ function GameEngine({
         ctx.strokeStyle = done
           ? "mediumseagreen"
           : coinsCollected >= 2
-          ? "orange"
-          : OFF_COLOR;
+            ? "orange"
+            : OFF_COLOR;
         ctx.beginPath();
         ctx.ellipse(x + 0.5, y + 0.5, 0.25, 0.25, 0, Math.PI * 2, 0);
         ctx.stroke();
         ctx.strokeStyle = done
           ? "mediumseagreen"
           : coinsCollected >= 1
-          ? "orange"
-          : OFF_COLOR;
+            ? "orange"
+            : OFF_COLOR;
         ctx.beginPath();
         ctx.ellipse(x + 0.5, y + 0.5, 0.1, 0.1, 0, Math.PI * 2, 0);
         ctx.stroke();
@@ -397,7 +397,7 @@ function GameEngine({
       function detectCoins() {
         for (let { x, y } of gameState.coins || []) {
           if (newX === x && newY === y) {
-            engineState.current.overrideNextTick = () => {};
+            engineState.current.overrideNextTick = () => { };
             engineState.current.onNextTick.push(() => {
               gameState.coinsCollected = (gameState.coinsCollected || 0) + 1;
               gameState.coins = gameState.coins.filter(
@@ -476,7 +476,7 @@ function lerp(from, to, f) {
   return from + (to - from) * f;
 }
 
-function sentenceCase(s) {
+function titleCase(s) {
   return s
     .split(/\s+/)
     .map(c => c.charAt(0).toLocaleUpperCase() + c.substring(1))
