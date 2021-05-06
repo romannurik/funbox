@@ -1,15 +1,16 @@
-import React from "react";
-import styles from "./RobotGame.module.scss";
-import { Game } from "./Game";
-import { ChevronLeftIcon, ChevronRightIcon } from "@primer/octicons-react";
-import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
-import { LevelEditor } from "./LevelEditor";
+import React from 'react';
+import styles from './RobotGame.module.scss';
+import { Game } from './Game';
+import { ChevronLeftIcon, ChevronRightIcon } from '@primer/octicons-react';
+import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
+import { LevelEditor } from './LevelEditor';
+import { Message } from './Message';
 
 const LEVEL_CHAPTERS = [
-  import("./levels/01-intro"),
-  import("./levels/02-coins"),
-  import("./levels/03-walls"),
-  import("./levels/04-turnaround"),
+  import('./levels/01-intro'),
+  import('./levels/02-coins'),
+  import('./levels/03-walls'),
+  import('./levels/04-turnaround')
 ];
 
 export function RobotGame() {
@@ -18,15 +19,16 @@ export function RobotGame() {
 
   React.useEffect(() => {
     (async () => {
-      let levels = (await Promise
-        .all((await Promise.all(LEVEL_CHAPTERS)).flatMap(m => m.default)))
-        .map(m => m.default);
+      let levels = (await Promise.all(
+        (await Promise.all(LEVEL_CHAPTERS)).flatMap(m => m.default)
+      )).map(m => m.default);
       setLoadedLevels(levels);
+      setLevel(levels.length);
     })();
   }, []);
 
   function changeLevel(dir) {
-    setLevel(Math.max(0, Math.min(loadedLevels.length - 1, level + dir)));
+    setLevel(Math.max(0, Math.min(loadedLevels.length, level + dir)));
   }
 
   return (
@@ -47,17 +49,26 @@ export function RobotGame() {
                   </button>
                   Level {level + 1}
                   <button
-                    disabled={level === loadedLevels.length - 1}
+                    disabled={level === loadedLevels.length}
                     className={styles.levelButton}
                     onClick={() => changeLevel(1)}
                   >
                     <ChevronRightIcon />
                   </button>
                 </div>
-                <Game
-                  level={loadedLevels[level]}
-                  onAdvanceToNextLevel={() => changeLevel(1)}
-                />
+                {level < loadedLevels.length && (
+                  <Game
+                    level={loadedLevels[level]}
+                    onAdvanceToNextLevel={() => changeLevel(1)}
+                  />
+                )}
+                {level === loadedLevels.length && (
+                  <div style={{ position: 'relative', margin: 40 }}>
+                    <Message show>
+                      Stay tuned! More levels are coming soon
+                    </Message>
+                  </div>
+                )}
               </>
             )}
           </div>
