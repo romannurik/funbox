@@ -50,6 +50,33 @@
   }
 }
 
+.controlPanel,
+.message {
+  button {
+    --color: #fff;
+    color: var(--color);
+    margin: 16px 0;
+    appearance: none;
+    font-family: Poppins;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 2px solid var(--color);
+    background-color: transparent;
+    padding: 12px 16px;
+    cursor: pointer;
+
+    &.primary {
+      background-color: var(--color);
+      color: #000;
+    }
+
+    @include narrow {
+      margin: 0 12px;
+      flex-direction: row;
+    }
+  }
+}
+
 .controlPanel {
   width: 200px;
   margin-right: 24px;
@@ -68,28 +95,7 @@
   }
 
   button {
-    --color: #fff;
-    color: var(--color);
-    margin: 16px 0;
-    appearance: none;
-    font-family: Poppins;
-    font-size: 16px;
-    border-radius: 8px;
-    border: 2px solid var(--color);
-    background-color: transparent;
     width: 100%;
-    padding: 12px 16px;
-    cursor: pointer;
-
-    &.primary {
-      background-color: var(--color);
-      color: #000;
-    }
-
-    @include narrow {
-      margin: 0 12px;
-      flex-direction: row;
-    }
   }
 
   .goButton {
@@ -131,6 +137,13 @@
   flex: 1 1 0;
   max-height: 100%;
   position: relative;
+}
+
+.message {
+  max-width: calc(100% - 32px);
+  max-height: calc(100% - 32px);
+  margin: auto auto;
+  aspect-ratio: 1 / 1;
 }
 
 .gameBoard {

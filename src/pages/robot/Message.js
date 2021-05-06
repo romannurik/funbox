@@ -1,20 +1,16 @@
+import cn from 'classnames';
 import React from "react";
 import styles from "./Message.module.scss";
-import { XIcon } from "@primer/octicons-react";
 
-export function Message({ show, onClose, children }) {
+export function Message({ className, show, button, children }) {
   if (!show) {
     return null;
   }
 
   return (
-    <div className={styles.messageContainer}>
-      <div className={styles.message}>
-        <button className={styles.dismiss} onClick={onClose}>
-          <XIcon size="36" />
-        </button>
-        <div className={styles.messageContent}>{children}</div>
-      </div>
+    <div className={cn(styles.message, className)}>
+      <div className={styles.messageContent}>{children}</div>
+      {button}
     </div>
   );
 }

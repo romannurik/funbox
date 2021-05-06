@@ -54,7 +54,11 @@ export function Game({ className, level, onAdvanceToNextLevel, onCellClick }) {
     setRunning(false);
     setLevelCompleted(true);
     if (level.doneText) {
-      setMessage(level.doneText);
+      setMessage({
+        text: level.doneText,
+        button: 'Next level',
+        buttonNextLevel: true,
+      });
     }
   }
 
@@ -62,7 +66,12 @@ export function Game({ className, level, onAdvanceToNextLevel, onCellClick }) {
     setRunning(false);
     setEngineLevel(level);
     setLevelCompleted(false);
-    setMessage(level.startText || null);
+    if (level.startText) {
+      setMessage({
+        text: level.startText,
+        button: 'Let\'s go',
+      });
+    }
     let p = {};
     for (let b of level.blocks || []) {
       p[b.color] = "";
@@ -75,14 +84,14 @@ export function Game({ className, level, onAdvanceToNextLevel, onCellClick }) {
       <div className={styles.controlPanel}>
         {!levelCompleted && (
           <button
-            className={cn(styles.goButton, { [styles.primary]: !running })}
+            className={cn(styles.goButton, { [styles.primary]: !running && !message })}
             onClick={handleGoButton}
           >
             {running ? "Stop" : "Go"}
           </button>
         )}
         {levelCompleted && (
-          <button className={styles.primary} onClick={onAdvanceToNextLevel}>
+          <button className={cn({ [styles.primary]: !message })} onClick={onAdvanceToNextLevel}>
             Next level
           </button>
         )}
@@ -120,8 +129,16 @@ export function Game({ className, level, onAdvanceToNextLevel, onCellClick }) {
       </div>
       <div className={styles.gameBoardContainer}>
         {message && (
-          <Message show={true} onClose={() => setMessage(null)}>
-            {message}
+          <Message className={styles.message} show={true}
+            button={
+              <button className={styles.primary} onClick={() => {
+                setMessage(null);
+                message.buttonNextLevel && onAdvanceToNextLevel();
+              }}>
+                {message.button}
+              </button>
+            }>
+            {message.text}
           </Message>
         )}
         <GameEngine

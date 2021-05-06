@@ -5,20 +5,11 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@primer/octicons-react";
 import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
 import { LevelEditor } from "./LevelEditor";
 
-const LEVELS = [
-  import("./levels/01-intro/01"),
-  import("./levels/01-intro/02"),
-  import("./levels/01-intro/03"),
-  import("./levels/01-intro/04"),
-  import("./levels/01-intro/05"),
-  import("./levels/01-intro/06"),
-  import("./levels/02-coins/01"),
-  import("./levels/02-coins/02"),
-  import("./levels/02-coins/03"),
-  import("./levels/03-walls/01"),
-  import("./levels/03-walls/02"),
-  import("./levels/04-turnaround/01"),
-  import("./levels/04-turnaround/02"),
+const LEVEL_CHAPTERS = [
+  import("./levels/01-intro"),
+  import("./levels/02-coins"),
+  import("./levels/03-walls"),
+  import("./levels/04-turnaround"),
 ];
 
 export function RobotGame() {
@@ -27,7 +18,10 @@ export function RobotGame() {
 
   React.useEffect(() => {
     (async () => {
-      setLoadedLevels((await Promise.all(LEVELS)).map(m => m.default));
+      let levels = (await Promise
+        .all((await Promise.all(LEVEL_CHAPTERS)).flatMap(m => m.default)))
+        .map(m => m.default);
+      setLoadedLevels(levels);
     })();
   }, []);
 
