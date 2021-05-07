@@ -55,7 +55,6 @@
   button {
     --color: #fff;
     color: var(--color);
-    margin: 16px 0;
     appearance: none;
     font-family: Poppins;
     font-size: 16px;
@@ -68,11 +67,6 @@
     &.primary {
       background-color: var(--color);
       color: #000;
-    }
-
-    @include narrow {
-      margin: 0 12px;
-      flex-direction: row;
     }
   }
 }
@@ -96,15 +90,15 @@
 
   button {
     width: 100%;
+    margin: 16px 0;
+
+    @include narrow {
+      margin: 0 8px;
+    }
   }
 
   .goButton {
-    flex: 0 0 auto;
     margin-left: 0;
-
-    @include narrow {
-      width: 90px;
-    }
   }
 
   .instruction {
@@ -112,6 +106,7 @@
     align-items: center;
     color: var(--color);
     text-align: left;
+    flex-direction: row;
 
     @include narrow {
       text-align: center;

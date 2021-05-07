@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { roundRect } from "./canvas-util";
 import { Message } from "./Message";
 import { TurnAroundIcon } from "./MoreIcons";
+import { ResponsiveLabel } from "./ResponsiveLabel";
 import styles from "./RobotGame.module.scss";
 
 const SPEED = 300;
@@ -92,7 +93,7 @@ export function Game({ className, level, onAdvanceToNextLevel, onCellClick }) {
         )}
         {levelCompleted && (
           <button className={cn({ [styles.primary]: !message })} onClick={onAdvanceToNextLevel}>
-            Next level
+            <ResponsiveLabel small="Next">Next level</ResponsiveLabel>
           </button>
         )}
         {Object.entries(userProgram).map(([color, action = ""]) => {

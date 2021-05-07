@@ -1,0 +1,18 @@
+@mixin narrow {
+  @media only screen and (max-width: 600px) {
+    @content;
+  }
+}
+
+.small {
+  display: none;
+}
+
+@include narrow {
+  .default {
+    display: none;
+  }
+  .small {
+    display: unset;
+  }
+}
