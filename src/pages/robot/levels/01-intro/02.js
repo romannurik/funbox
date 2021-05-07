@@ -8,6 +8,6 @@ export default {
     { x: 5, y: 3, color: "blue" }
   ],
   startText:
-    "Whoa, new colors! Try giving him instructions for a few different colors.",
-  doneText: "Great job! Let's do it again on the next level."
+    "Look, new colors! Try giving the Robot instructions for a few different colors.",
+  doneText: "Great job!"
 };
