@@ -71,6 +71,8 @@ export function Game({ className, level, onAdvanceToNextLevel, onCellClick }) {
         text: level.startText,
         button: 'Let\'s go',
       });
+    } else {
+      setMessage(null);
     }
     let p = {};
     for (let b of level.blocks || []) {

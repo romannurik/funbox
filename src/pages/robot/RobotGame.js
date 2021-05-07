@@ -23,7 +23,6 @@ export function RobotGame() {
         (await Promise.all(LEVEL_CHAPTERS)).flatMap(m => m.default)
       )).map(m => m.default);
       setLoadedLevels(levels);
-      setLevel(levels.length);
     })();
   }, []);
 
