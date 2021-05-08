@@ -1,31 +1,27 @@
-import { ArrowUpIcon, ReplyIcon } from "@primer/octicons-react";
-import cn from "classnames";
-import React, { useEffect, useRef, useState } from "react";
-import { roundRect } from "./canvas-util";
-import { Message } from "./Message";
-import { TurnAroundIcon } from "./MoreIcons";
-import { ResponsiveLabel } from "./ResponsiveLabel";
-import styles from "./RobotGame.module.scss";
+import { ArrowUpIcon, ReplyIcon } from '@primer/octicons-react';
+import cn from 'classnames';
+import React, { useEffect, useRef, useState } from 'react';
+import { roundRect } from './canvas-util';
+import { Message } from './Message';
+import { TurnAroundIcon } from './MoreIcons';
+import { ResponsiveLabel } from './ResponsiveLabel';
+import styles from './RobotGame.module.scss';
+import { COLORMAP } from './const';
 
 const SPEED = 300;
-const COLORMAP = {
-  blue: "deepskyblue",
-  red: "tomato",
-  purple: "#9f57eb"
-};
-const DIRS = ["l", "d", "r", "u"];
+const DIRS = ['l', 'd', 'r', 'u'];
 const DIR_DELTAS = {
   l: { x: -1, y: 0 },
   d: { x: 0, y: 1 },
   r: { x: 1, y: 0 },
   u: { x: 0, y: -1 }
 };
-const ACTIONS = ["", "turn-left", "turn-right", "turn-around"];
+const ACTIONS = ['', 'turn-left', 'turn-right', 'turn-around'];
 const ACTION_ICONS = {
-  "": ArrowUpIcon,
-  "turn-left": ReplyIcon,
-  "turn-right": FlippedReplyIcon,
-  "turn-around": TurnAroundIcon
+  '': ArrowUpIcon,
+  'turn-left': ReplyIcon,
+  'turn-right': FlippedReplyIcon,
+  'turn-around': TurnAroundIcon
 };
 const ROTATIONS = {
   l: Math.PI,
@@ -58,7 +54,7 @@ export function Game({ className, level, onAdvanceToNextLevel, onCellClick }) {
       setMessage({
         text: level.doneText,
         button: 'Next level',
-        buttonNextLevel: true,
+        buttonNextLevel: true
       });
     }
   }
@@ -70,14 +66,14 @@ export function Game({ className, level, onAdvanceToNextLevel, onCellClick }) {
     if (level.startText) {
       setMessage({
         text: level.startText,
-        button: 'Let\'s go',
+        button: "Let's go"
       });
     } else {
       setMessage(null);
     }
     let p = {};
     for (let b of level.blocks || []) {
-      p[b.color] = "";
+      p[b.color] = '';
     }
     setUserProgram(p);
   }, [level]);
@@ -87,18 +83,23 @@ export function Game({ className, level, onAdvanceToNextLevel, onCellClick }) {
       <div className={styles.controlPanel}>
         {!levelCompleted && (
           <button
-            className={cn(styles.goButton, { [styles.primary]: !running && !message })}
+            className={cn(styles.goButton, {
+              [styles.primary]: !running && !message
+            })}
             onClick={handleGoButton}
           >
-            {running ? "Stop" : "Go"}
+            {running ? 'Stop' : 'Go'}
           </button>
         )}
         {levelCompleted && (
-          <button className={cn({ [styles.primary]: !message })} onClick={onAdvanceToNextLevel}>
+          <button
+            className={cn(styles.goButton, { [styles.primary]: !message })}
+            onClick={onAdvanceToNextLevel}
+          >
             <ResponsiveLabel small="Next">Next level</ResponsiveLabel>
           </button>
         )}
-        {Object.entries(userProgram).map(([color, action = ""]) => {
+        {Object.entries(userProgram).map(([color, action = '']) => {
           const ActionIcon = ACTION_ICONS[action];
           return (
             <button
@@ -107,7 +108,7 @@ export function Game({ className, level, onAdvanceToNextLevel, onCellClick }) {
                 [styles.primary]: !!action
               })}
               style={{
-                "--color": COLORMAP[color] || color
+                '--color': COLORMAP[color] || color
               }}
               onClick={ev => {
                 setRunning(false);
@@ -132,15 +133,21 @@ export function Game({ className, level, onAdvanceToNextLevel, onCellClick }) {
       </div>
       <div className={styles.gameBoardContainer}>
         {message && (
-          <Message className={styles.message} show={true}
+          <Message
+            className={styles.message}
+            show={true}
             button={
-              <button className={styles.primary} onClick={() => {
-                setMessage(null);
-                message.buttonNextLevel && onAdvanceToNextLevel();
-              }}>
+              <button
+                className={styles.primary}
+                onClick={() => {
+                  setMessage(null);
+                  message.buttonNextLevel && onAdvanceToNextLevel();
+                }}
+              >
                 {message.button}
               </button>
-            }>
+            }
+          >
             {message.text}
           </Message>
         )}
@@ -165,7 +172,7 @@ function GameEngine({
   userProgram,
   running,
   onLevelCompleted,
-  onCellClick = () => { }
+  onCellClick = () => {}
 }) {
   let canvasRef = useRef();
   let engineState = useRef(null);
@@ -195,7 +202,7 @@ function GameEngine({
 
       canvas.width = CANVAS_SIZE;
       canvas.height = CANVAS_SIZE;
-      let ctx = canvas.getContext("2d");
+      let ctx = canvas.getContext('2d');
       ctx.translate(CANVAS_MARGIN, CANVAS_MARGIN);
       ctx.scale(
         (canvas.width - CANVAS_MARGIN * 2) / gameState.gridSize,
@@ -246,14 +253,14 @@ function GameEngine({
           bl: 0.5,
           br: 0.2
         });
-        ctx.fillStyle = "#79a";
+        ctx.fillStyle = '#79a';
         ctx.fill();
-        ctx.fillStyle = "white";
+        ctx.fillStyle = 'white';
         ctx.beginPath();
         ctx.arc(0.2, -0.15, 0.2, 0, Math.PI * 2, 0);
         ctx.arc(0.2, 0.15, 0.2, 0, Math.PI * 2, 0);
         ctx.fill();
-        ctx.fillStyle = "black";
+        ctx.fillStyle = 'black';
         ctx.beginPath();
         ctx.arc(0.25, -0.15, 0.1, 0, Math.PI * 2, 0);
         ctx.arc(0.25, 0.15, 0.1, 0, Math.PI * 2, 0);
@@ -287,7 +294,7 @@ function GameEngine({
 
       function drawCoins() {
         for (let { x, y } of gameState.coins || []) {
-          ctx.fillStyle = "orange";
+          ctx.fillStyle = 'orange';
           ctx.beginPath();
           ctx.arc(x + 0.5, y + 0.5, 0.2, 0, Math.PI * 2, 1);
           ctx.fill();
@@ -301,37 +308,37 @@ function GameEngine({
       }
 
       function drawGoal() {
-        const OFF_COLOR = "rgba(255,255,255,0.2)";
+        const OFF_COLOR = 'rgba(255,255,255,0.2)';
         let { x, y, coinsNeeded = 0 } = gameState.goal;
         let { coinsCollected = 0 } = gameState;
         ctx.lineWidth = 0.1;
         let done = coinsCollected >= coinsNeeded;
-        ctx.strokeStyle = done ? "mediumseagreen" : OFF_COLOR;
+        ctx.strokeStyle = done ? 'mediumseagreen' : OFF_COLOR;
         ctx.beginPath();
         ctx.ellipse(x + 0.5, y + 0.5, 0.4, 0.4, 0, Math.PI * 2, 0);
         ctx.stroke();
         ctx.strokeStyle = done
-          ? "mediumseagreen"
+          ? 'mediumseagreen'
           : coinsCollected >= 2
-            ? "orange"
-            : OFF_COLOR;
+          ? 'orange'
+          : OFF_COLOR;
         ctx.beginPath();
         ctx.ellipse(x + 0.5, y + 0.5, 0.25, 0.25, 0, Math.PI * 2, 0);
         ctx.stroke();
         ctx.strokeStyle = done
-          ? "mediumseagreen"
+          ? 'mediumseagreen'
           : coinsCollected >= 1
-            ? "orange"
-            : OFF_COLOR;
+          ? 'orange'
+          : OFF_COLOR;
         ctx.beginPath();
         ctx.ellipse(x + 0.5, y + 0.5, 0.1, 0.1, 0, Math.PI * 2, 0);
         ctx.stroke();
       }
 
       function drawGrid() {
-        ctx.fillStyle = "#355382";
+        ctx.fillStyle = '#355382';
         ctx.fillRect(0, 0, gameState.gridSize, gameState.gridSize);
-        ctx.fillStyle = "#406091";
+        ctx.fillStyle = '#406091';
         for (let x = 0; x < gameState.gridSize; x++) {
           for (let y = 0; y < gameState.gridSize; y++) {
             if ((x + y) % 2 === 0) {
@@ -396,13 +403,13 @@ function GameEngine({
         for (let { x, y, color } of gameState.blocks || []) {
           if (newX === x && newY === y) {
             let action = userProgram[color];
-            if (action === "turn-left") {
+            if (action === 'turn-left') {
               changeDir =
                 DIRS[(DIRS.indexOf(dir) + DIRS.length + 1) % DIRS.length];
-            } else if (action === "turn-right") {
+            } else if (action === 'turn-right') {
               changeDir =
                 DIRS[(DIRS.indexOf(dir) + DIRS.length - 1) % DIRS.length];
-            } else if (action === "turn-around") {
+            } else if (action === 'turn-around') {
               changeDir =
                 DIRS[(DIRS.indexOf(dir) + DIRS.length + 2) % DIRS.length];
             }
@@ -417,7 +424,7 @@ function GameEngine({
       function detectCoins() {
         for (let { x, y } of gameState.coins || []) {
           if (newX === x && newY === y) {
-            engineState.current.overrideNextTick = () => { };
+            engineState.current.overrideNextTick = () => {};
             engineState.current.onNextTick.push(() => {
               gameState.coinsCollected = (gameState.coinsCollected || 0) + 1;
               gameState.coins = gameState.coins.filter(
@@ -500,7 +507,7 @@ function titleCase(s) {
   return s
     .split(/\s+/)
     .map(c => c.charAt(0).toLocaleUpperCase() + c.substring(1))
-    .join(" ");
+    .join(' ');
 }
 
 function FlippedReplyIcon(props) {
