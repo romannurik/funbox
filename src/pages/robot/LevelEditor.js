@@ -5,12 +5,16 @@ import styles from './LevelEditor.module.scss';
 import { COLORMAP } from './const';
 
 const MIN_GRID = 5;
+const MAX_GRID = 21;
 
 let TOOLS = {
-  eraser: {
-    key: 'e',
-    title: 'Erase',
-    exec: (level, x, y) => {}
+  robot: {
+    key: 'r',
+    exec: (level, x, y) => (level.robot = { x, y, dir: 'r' })
+  },
+  goal: {
+    key: 'g',
+    exec: (level, x, y) => (level.goal = { x, y })
   },
   wall: {
     key: 'w',
@@ -20,13 +24,27 @@ let TOOLS = {
     key: 'c',
     exec: (level, x, y) => level.coins.push({ x, y })
   },
-  goal: {
-    key: 'g',
-    exec: (level, x, y) => (level.goal = { x, y })
-  },
-  robot: {
-    key: 'r',
-    exec: (level, x, y) => (level.robot = { x, y, dir: 'r' })
+  ...Object.fromEntries(
+    ['red', 'blue', 'purple', 'orange'].map((color, i) => [
+      `color-${color}`,
+      {
+        key: String(i + 1),
+        ind: (
+          <div
+            className={styles.colorTool}
+            style={{
+              color: COLORMAP[color] || color
+            }}
+          />
+        ),
+        exec: (level, x, y) => level.blocks.push({ x, y, color })
+      }
+    ])
+  ),
+  eraser: {
+    key: 'e',
+    title: 'Erase',
+    exec: (level, x, y) => {}
   },
   shrink: {
     key: 's',
@@ -42,7 +60,7 @@ let TOOLS = {
       level.walls = (level.walls || []).filter(f);
       let move = o => {
         if (o.x >= x) o.x = Math.max(0, o.x - 1);
-        if (o.y >= y) o.y = Math.max(0, o. - 1);
+        if (o.y >= y) o.y = Math.max(0, o.y - 1);
       };
       for (let o of [
         ...(level.blocks || []),
@@ -56,21 +74,6 @@ let TOOLS = {
     }
   }
 };
-
-for (let [i, color] of ['red', 'blue', 'purple'].entries()) {
-  TOOLS[`color-${color}`] = {
-    key: String(i + 1),
-    ind: (
-      <div
-        className={styles.colorTool}
-        style={{
-          color: COLORMAP[color] || color
-        }}
-      />
-    ),
-    exec: (level, x, y) => level.blocks.push({ x, y, color })
-  };
-}
 
 export function LevelEditor({ level: initialLevel }) {
   let [level, _setLevel] = React.useState(
@@ -136,7 +139,10 @@ export function LevelEditor({ level: initialLevel }) {
               onChange={ev => {
                 setLevel({
                   ...level,
-                  gridSize: Math.max(MIN_GRID, Number(ev.target.value))
+                  gridSize: Math.max(
+                    MIN_GRID,
+                    Math.min(MAX_GRID, Number(ev.target.value))
+                  )
                 });
               }}
             />

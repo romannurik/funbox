@@ -218,7 +218,7 @@ function GameEngine({
       drawGrid();
       drawBlocks();
       drawCoins();
-      drawGoal();
+      drawTarget();
       drawWalls();
       drawRobot();
 
@@ -294,7 +294,7 @@ function GameEngine({
 
       function drawCoins() {
         for (let { x, y } of gameState.coins || []) {
-          ctx.fillStyle = 'orange';
+          ctx.fillStyle = 'white';
           ctx.beginPath();
           ctx.arc(x + 0.5, y + 0.5, 0.2, 0, Math.PI * 2, 1);
           ctx.fill();
@@ -307,7 +307,7 @@ function GameEngine({
         }
       }
 
-      function drawGoal() {
+      function drawTarget() {
         const OFF_COLOR = 'rgba(255,255,255,0.2)';
         let { x, y, coinsNeeded = 0 } = gameState.goal;
         let { coinsCollected = 0 } = gameState;
@@ -320,7 +320,7 @@ function GameEngine({
         ctx.strokeStyle = done
           ? 'mediumseagreen'
           : coinsCollected >= 2
-          ? 'orange'
+          ? 'white'
           : OFF_COLOR;
         ctx.beginPath();
         ctx.ellipse(x + 0.5, y + 0.5, 0.25, 0.25, 0, Math.PI * 2, 0);
@@ -328,7 +328,7 @@ function GameEngine({
         ctx.strokeStyle = done
           ? 'mediumseagreen'
           : coinsCollected >= 1
-          ? 'orange'
+          ? 'white'
           : OFF_COLOR;
         ctx.beginPath();
         ctx.ellipse(x + 0.5, y + 0.5, 0.1, 0.1, 0, Math.PI * 2, 0);
