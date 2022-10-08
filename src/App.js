@@ -1,7 +1,8 @@
 import React from "react";
-import { BrowserRouter as Router, Redirect, Link, Switch, Route } from "react-router-dom";
-import { MathPlay } from "./pages/math/MathPlay";
+import { BrowserRouter as Router, Redirect, Route, Switch } from "react-router-dom";
+import { KidLangEditor } from "./pages/kidlang/KidLangEditor";
 import { MathGame } from "./pages/math/MathGame";
+import { MathPlay } from "./pages/math/MathPlay";
 import { RobotGame } from "./pages/robot/RobotGame";
 
 export function App() {
@@ -11,6 +12,7 @@ export function App() {
         <Route path="/mathplay" component={MathPlay} />
         <Route path="/mathgame" component={MathGame} />
         <Route path="/robot" component={RobotGame} />
+        <Route path="/kidlang" component={KidLangEditor} />
         <Route path="/">
           <Redirect to="/robot" />
           {/* <div>

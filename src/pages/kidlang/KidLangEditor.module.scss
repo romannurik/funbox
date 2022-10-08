@@ -1,0 +1,17 @@
+.container {
+  height: 100vh;
+  padding: 20px;
+  gap: 10px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor,
+.log,
+.renderer {
+  flex: 1 1 0;
+  min-height: 0;
+  border: 1px solid yellow;
+  margin: 0;
+}
