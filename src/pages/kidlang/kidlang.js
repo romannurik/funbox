@@ -4,12 +4,14 @@ const GRAMMAR = `
   KidLang {
     Program = Statement*
     Statement
-      = (BlockStatement | SetStatement | CommandStatement) comment? -- withComment
+      = (BlockStatement | SetStatement | CallStatement | CommandStatement) comment? -- withComment
       | comment  -- justComment
-    BlockStatement = RepeatStatement
+    BlockStatement = RepeatStatement | FunctionStatement
+    RepeatStatement = "REPEAT" Expr Statement* "END"
+    FunctionStatement = "FUNCTION" ident ident* Statement* "END"
 
     SetStatement = "SET" ident "=" Expr
-    RepeatStatement = "REPEAT" Expr Statement* "END"
+    CallStatement = "CALL" ident Expr*
     CommandStatement = command Arg*
     
     Arg = Expr
@@ -25,7 +27,7 @@ const GRAMMAR = `
     reservedWord = "SET" | "REPEAT" | "END"
     command = ~reservedWord upper+
     ident = lower (lower | digit)*
-    string = "\\"" alnum* "\\""
+    string = "\\"" (~\"\\"\" any)* "\\""
     number = digit+
   }
 `;
@@ -40,7 +42,12 @@ function run(program, onCommand) {
       message: matchResult.shortMessage,
     };
   }
-  const context = { stdout: '', vars: makeInitialVars(), onCommand };
+  const context = {
+    stdout: '',
+    vars: makeInitialVars(),
+    funcs: makeInitialFuncs(),
+    onCommand
+  };
   sem(matchResult).eval(context);
   return context.stdout;
 }
@@ -55,10 +62,49 @@ function createParser() {
     SetStatement(_, varName, __, expr) {
       this.args.context.vars[varName.sourceString] = expr.eval(this.args.context);
     },
+    FunctionStatement(_, funcName, argNames, statements, __) {
+      this.args.context.funcs[funcName.sourceString] = {
+        argNames: argNames.children.map(node => node.sourceString),
+        statements,
+      };
+    },
+    CallStatement(_, funcName, args) {
+      if (!(funcName.sourceString in this.args.context.funcs)) {
+        throw {
+          position: this.source.startIdx,
+          endPosition: this.source.endIdx,
+          message: `Unknown function "${funcName.sourceString}"`,
+        };
+      }
+
+      let { argNames, statements } = this.args.context.funcs[funcName.sourceString];
+      if (argNames.length !== args.children.length) {
+        throw {
+          position: this.source.startIdx,
+          endPosition: this.source.endIdx,
+          message: `Function "${funcName.sourceString}" expects ${argNames.length} parameters (got ${args.children.length})`,
+        };
+      }
+
+      let params = {};
+      for (let i = 0; i < argNames.length; i++) {
+        params[argNames[i]] = args.children[i].eval(this.args.context);
+      }
+
+      let callContext = {
+        ...this.args.context,
+        vars: {
+          ...this.args.context.vars,
+          ...params,
+        }
+      };
+
+      statements.eval(callContext);
+    },
     RepeatStatement(_, numTimesExpr, statements, __) {
       let numTimes = numTimesExpr.eval(this.args.context);
       for (let i = 0; i < numTimes; i++) {
-        const result = statements.eval(this.args.context);
+        statements.eval(this.args.context);
       }
     },
     CommandStatement(command, args) {
@@ -160,8 +206,12 @@ function makeInitialVars() {
   return { ...colors, ...positions };
 }
 
+function makeInitialFuncs() {
+  return {};
+}
+
 function namedColors() {
-  return ["AliceBlue","AntiqueWhite","Aqua","Aquamarine","Azure","Beige","Bisque","Black","BlanchedAlmond","Blue","BlueViolet","Brown","BurlyWood","CadetBlue","Chartreuse","Chocolate","Coral","CornflowerBlue","Cornsilk","Crimson","Cyan","DarkBlue","DarkCyan","DarkGoldenRod","DarkGray","DarkGrey","DarkGreen","DarkKhaki","DarkMagenta","DarkOliveGreen","DarkOrange","DarkOrchid","DarkRed","DarkSalmon","DarkSeaGreen","DarkSlateBlue","DarkSlateGray","DarkSlateGrey","DarkTurquoise","DarkViolet","DeepPink","DeepSkyBlue","DimGray","DimGrey","DodgerBlue","FireBrick","FloralWhite","ForestGreen","Fuchsia","Gainsboro","GhostWhite","Gold","GoldenRod","Gray","Grey","Green","GreenYellow","HoneyDew","HotPink","IndianRed","Indigo","Ivory","Khaki","Lavender","LavenderBlush","LawnGreen","LemonChiffon","LightBlue","LightCoral","LightCyan","LightGoldenRodYellow","LightGray","LightGrey","LightGreen","LightPink","LightSalmon","LightSeaGreen","LightSkyBlue","LightSlateGray","LightSlateGrey","LightSteelBlue","LightYellow","Lime","LimeGreen","Linen","Magenta","Maroon","MediumAquaMarine","MediumBlue","MediumOrchid","MediumPurple","MediumSeaGreen","MediumSlateBlue","MediumSpringGreen","MediumTurquoise","MediumVioletRed","MidnightBlue","MintCream","MistyRose","Moccasin","NavajoWhite","Navy","OldLace","Olive","OliveDrab","Orange","OrangeRed","Orchid","PaleGoldenRod","PaleGreen","PaleTurquoise","PaleVioletRed","PapayaWhip","PeachPuff","Peru","Pink","Plum","PowderBlue","Purple","RebeccaPurple","Red","RosyBrown","RoyalBlue","SaddleBrown","Salmon","SandyBrown","SeaGreen","SeaShell","Sienna","Silver","SkyBlue","SlateBlue","SlateGray","SlateGrey","Snow","SpringGreen","SteelBlue","Tan","Teal","Thistle","Tomato","Turquoise","Violet","Wheat","White","WhiteSmoke","Yellow","YellowGreen"];
+  return ["AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque", "Black", "BlanchedAlmond", "Blue", "BlueViolet", "Brown", "BurlyWood", "CadetBlue", "Chartreuse", "Chocolate", "Coral", "CornflowerBlue", "Cornsilk", "Crimson", "Cyan", "DarkBlue", "DarkCyan", "DarkGoldenRod", "DarkGray", "DarkGrey", "DarkGreen", "DarkKhaki", "DarkMagenta", "DarkOliveGreen", "DarkOrange", "DarkOrchid", "DarkRed", "DarkSalmon", "DarkSeaGreen", "DarkSlateBlue", "DarkSlateGray", "DarkSlateGrey", "DarkTurquoise", "DarkViolet", "DeepPink", "DeepSkyBlue", "DimGray", "DimGrey", "DodgerBlue", "FireBrick", "FloralWhite", "ForestGreen", "Fuchsia", "Gainsboro", "GhostWhite", "Gold", "GoldenRod", "Gray", "Grey", "Green", "GreenYellow", "HoneyDew", "HotPink", "IndianRed", "Indigo", "Ivory", "Khaki", "Lavender", "LavenderBlush", "LawnGreen", "LemonChiffon", "LightBlue", "LightCoral", "LightCyan", "LightGoldenRodYellow", "LightGray", "LightGrey", "LightGreen", "LightPink", "LightSalmon", "LightSeaGreen", "LightSkyBlue", "LightSlateGray", "LightSlateGrey", "LightSteelBlue", "LightYellow", "Lime", "LimeGreen", "Linen", "Magenta", "Maroon", "MediumAquaMarine", "MediumBlue", "MediumOrchid", "MediumPurple", "MediumSeaGreen", "MediumSlateBlue", "MediumSpringGreen", "MediumTurquoise", "MediumVioletRed", "MidnightBlue", "MintCream", "MistyRose", "Moccasin", "NavajoWhite", "Navy", "OldLace", "Olive", "OliveDrab", "Orange", "OrangeRed", "Orchid", "PaleGoldenRod", "PaleGreen", "PaleTurquoise", "PaleVioletRed", "PapayaWhip", "PeachPuff", "Peru", "Pink", "Plum", "PowderBlue", "Purple", "RebeccaPurple", "Red", "RosyBrown", "RoyalBlue", "SaddleBrown", "Salmon", "SandyBrown", "SeaGreen", "SeaShell", "Sienna", "Silver", "SkyBlue", "SlateBlue", "SlateGray", "SlateGrey", "Snow", "SpringGreen", "SteelBlue", "Tan", "Teal", "Thistle", "Tomato", "Turquoise", "Violet", "Wheat", "White", "WhiteSmoke", "Yellow", "YellowGreen"];
 }
 
 export default { run };

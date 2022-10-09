@@ -7,7 +7,7 @@
   display: grid;
   grid-template:
     'editor renderer' 1fr
-    'log renderer' auto / 2fr 3fr;
+    'editor renderer' auto / 2fr 3fr;
 }
 
 .editor,

@@ -25,7 +25,6 @@ export function Renderer({ program, onOutput, onError, ...props }) {
     };
     const API = {
       LETTER(color, text, point) {
-        assert(arguments.length >= 3, "LETTER needs at last 3 parameters");
         ctx.scale(0.1, 0.1);
         ctx.font = `6px ${CODE_FONT}`;
         ctx.fillStyle = color;
@@ -36,16 +35,34 @@ export function Renderer({ program, onOutput, onError, ...props }) {
           point.c * 10 + 5,
           point.r * 10 + 5);
       },
-      LINE(color, p1, ...points) {
-        ctx.strokeStyle = color;
-        ctx.fillStyle = 'transparent';
-        ctx.lineWidth = 0.2;
-        ctx.beginPath();
-        ctx.moveTo(p1.c + 0.5, p1.r + 0.5);
-        for (let p of points) {
-          ctx.lineTo(p.c + 0.5, p.r + 0.5);
+      TEXT(color, text, start) {
+        ctx.scale(0.1, 0.1);
+        ctx.font = `6px ${CODE_FONT}`;
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        text = String(text || '');
+        for (let i = 0; i < text.length; i++) {
+          ctx.fillText(
+            text.charAt(i),
+            (start.c + i) * 10 + 5,
+            start.r * 10 + 5);
         }
-        ctx.stroke();
+      },
+      LINE: {
+        variadic: true,
+        minArgs: 2,
+        fn: (color, p1, ...points) => {
+          ctx.strokeStyle = color;
+          ctx.fillStyle = 'transparent';
+          ctx.lineWidth = 0.2;
+          ctx.beginPath();
+          ctx.moveTo(p1.c + 0.5, p1.r + 0.5);
+          for (let p of points) {
+            ctx.lineTo(p.c + 0.5, p.r + 0.5);
+          }
+          ctx.stroke();
+        }
       },
       DOT(color, point) {
         ctx.fillStyle = color;
@@ -85,9 +102,27 @@ export function Renderer({ program, onOutput, onError, ...props }) {
           throw new Error(`I don't know the command: "${cmd}"`);
         }
 
+        let api = (typeof API[cmd] === 'function')
+          ? {
+            fn: API[cmd],
+            minArgs: API[cmd].length,
+            variadic: false,
+          } : API[cmd];
+
+        if (api.variadic) {
+          if (args.length < api.minArgs) {
+            throw new Error(`${cmd} expects at least ${api.minArgs} parameters`);
+          }
+        } else {
+          if (args.length !== api.minArgs) {
+            throw new Error(`${cmd} expects exactly ${api.minArgs} parameters`);
+          }
+        }
+
+
         try {
           ctx.save();
-          API[cmd](...args);
+          api.fn(...args);
         } finally {
           ctx.restore();
         }
