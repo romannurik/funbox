@@ -105,6 +105,13 @@ function createParser() {
     comment(_, __, ___) {
     },
     ident(_, __) {
+      if (!(this.sourceString in this.args.context.vars)) {
+        throw {
+          position: this.source.startIdx,
+          endPosition: this.source.endIdx,
+          message: `Unknown variable "${this.sourceString}"`,
+        };
+      }
       return this.args.context.vars?.[this.sourceString] || this.sourceString;
     },
     string(_, __, ___) {

@@ -1,43 +1,37 @@
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import 'monaco-editor/esm/vs/editor/editor.all';
 import React, { useEffect, useRef, useState } from "react";
 import matColor from '../../material-colors';
-import styles from './KidLangEditor.module.scss';
 
 export function CodeEditor({ code, error, onCodeChange, ...props }) {
   let [node, setNode] = useState(null);
   let editor = useRef(null);
 
   useEffect(() => {
-    if (!editor.current) {
-      return;
-    }
-    if (!error) {
-      monaco.editor.setModelMarkers(
-        editor.current.getModel(),
-        'main', []);
+    const model = editor.current?.getModel();
+    if (!model) {
       return;
     }
 
-    const model = editor.current.getModel();
+    if (!error) {
+      monaco.editor.setModelMarkers(model, 'main', []);
+      return;
+    }
+
     const position = model.getPositionAt(error.position);
     const endPosition = error.endPosition
       ? model.getPositionAt(error.endPosition)
       : model.getPositionAt(error.position + 1);
-    monaco.editor.setModelMarkers(
-      editor.current.getModel(),
-      'main',
-      [
-        {
-          startLineNumber: position.lineNumber,
-          startColumn: position.column,
-          endLineNumber: endPosition.lineNumber,
-          endColumn: endPosition.column,
-          message: 'hey there',
-          severity: monaco.MarkerSeverity.Error,
-          // code: 'hey',
-          // source: 'blah',
-        }
-      ]);
+    monaco.editor.setModelMarkers(model, 'main', [
+      {
+        startLineNumber: position.lineNumber,
+        startColumn: position.column,
+        endLineNumber: endPosition.lineNumber,
+        endColumn: endPosition.column,
+        message: error.message,
+        severity: monaco.MarkerSeverity.Error,
+      }
+    ]);
   }, [error]);
 
   useEffect(() => {
@@ -50,7 +44,7 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
         enabled: false,
       },
       wordBasedSuggestions: false,
-      // fontFamily: 'var(--font-stack-code)',
+      fontFamily: 'var(--font-family-code)',
       fontSize: 16,
       lineHeight: 22,
       fontLigatures: false,
@@ -107,10 +101,9 @@ function setupMonaco() {
         [/[A-Z]+/, "keyword"],
         [/[a-z]\w*/, "ident"],
         [/"[^"]*"/, "string"],
+        [/#.*$/, "comment"],
         [/\+|\=/, "operator"],
       ],
-      // linecontent: monacoMarkdown.language.tokenizer.linecontent
-      //   .filter(x => !Array.isArray(x) || x[1] != 'string.target'),
     },
   });
 }

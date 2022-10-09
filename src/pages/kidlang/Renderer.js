@@ -1,25 +1,33 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import kid from "./kidlang";
+import styles from './KidLangEditor.module.scss';
 
 const GRID_SIZE = 10;
+const CODE_FONT = '"JetBrains Mono", monospace';
+const MARGIN = 10;
 
 export function Renderer({ program, onOutput, onError, ...props }) {
+  const containerRef = useRef(null);
   const [canvas, setCanvas] = useState(null);
 
   useEffect(() => {
-    if (!canvas) return;
-    canvas.width = canvas.offsetWidth * 2;
-    canvas.height = canvas.offsetHeight * 2;
+    if (!canvas || !containerRef.current) return;
+    let size = Math.min(containerRef.current.offsetWidth, containerRef.current.offsetHeight) - MARGIN * 2;
+    canvas.width = canvas.height = size * 2;
+    canvas.style.width = canvas.style.height = `${size}px`;
     let ctx = canvas.getContext('2d');
-    let cellSize = Math.min(canvas.width, canvas.height) / (GRID_SIZE + 1);
+    let cellSize = canvas.width / (GRID_SIZE + 1);
     ctx.scale(cellSize, cellSize);
     ctx.translate(1, 1);
 
+    const assert = (assertion, message) => {
+      if (!assertion) throw new Error(message);
+    };
     const API = {
       LETTER(color, text, point) {
-        ctx.save();
+        assert(arguments.length >= 3, "LETTER needs at last 3 parameters");
         ctx.scale(0.1, 0.1);
-        ctx.font = '6px monospace';
+        ctx.font = `6px ${CODE_FONT}`;
         ctx.fillStyle = color;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -27,7 +35,6 @@ export function Renderer({ program, onOutput, onError, ...props }) {
           String(text || '').substring(0, 1),
           point.c * 10 + 5,
           point.r * 10 + 5);
-        ctx.restore();
       },
       LINE(color, p1, ...points) {
         ctx.strokeStyle = color;
@@ -75,18 +82,19 @@ export function Renderer({ program, onOutput, onError, ...props }) {
     try {
       onOutput(kid.run(program, (cmd, ...args) => {
         if (!API[cmd]) {
-          throw {
-            position: 0,
-            message: `I don't know the command: "${cmd}"`
-          };
+          throw new Error(`I don't know the command: "${cmd}"`);
         }
 
-        API[cmd](...args);
+        try {
+          ctx.save();
+          API[cmd](...args);
+        } finally {
+          ctx.restore();
+        }
       }));
       onError(null);
     } catch (e) {
       onError(e);
-      console.error(e);
     }
     drawGridlines();
 
@@ -98,7 +106,7 @@ export function Renderer({ program, onOutput, onError, ...props }) {
     function drawLabels() {
       ctx.save();
       ctx.scale(0.1, 0.1);
-      ctx.font = '6px monospace';
+      ctx.font = `6px ${CODE_FONT}`;
       for (let r = 0; r < GRID_SIZE; r++) {
         ctx.fillStyle = 'rgba(255,255,255,.2)';
         ctx.textAlign = 'center';
@@ -130,7 +138,7 @@ export function Renderer({ program, onOutput, onError, ...props }) {
     }
   }, [canvas, program]);
 
-  return (
-    <canvas {...props} ref={node => setCanvas(node)} />
-  );
+  return <div ref={containerRef} {...props}>
+    <canvas ref={node => setCanvas(node)} />
+  </div>;
 }
