@@ -20,6 +20,9 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
 
     const model = editor.current.getModel();
     const position = model.getPositionAt(error.position);
+    const endPosition = error.endPosition
+      ? model.getPositionAt(error.endPosition)
+      : model.getPositionAt(error.position + 1);
     monaco.editor.setModelMarkers(
       editor.current.getModel(),
       'main',
@@ -27,8 +30,8 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
         {
           startLineNumber: position.lineNumber,
           startColumn: position.column,
-          endLineNumber: position.lineNumber,
-          endColumn: position.column + 1,
+          endLineNumber: endPosition.lineNumber,
+          endColumn: endPosition.column,
           message: 'hey there',
           severity: monaco.MarkerSeverity.Error,
           // code: 'hey',

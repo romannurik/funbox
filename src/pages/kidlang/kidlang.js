@@ -67,7 +67,15 @@ function createParser() {
         ...args.eval(this.args.context)
       ];
       this.args.context.stdout += pieces.join(', ') + '\n';
-      this.args.context.onCommand(command.sourceString, ...pieces.slice(1));
+      try {
+        this.args.context.onCommand(command.sourceString, ...pieces.slice(1));
+      } catch (e) {
+        throw {
+          position: this.source.startIdx,
+          endPosition: this.source.endIdx,
+          message: e.message,
+        };
+      }
     },
     Expr_plus(left, _, right) {
       left = left.eval(this.args.context);
