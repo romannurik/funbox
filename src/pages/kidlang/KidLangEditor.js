@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from "react";
-import kid from "./kidlang";
-import styles from './KidLangEditor.module.scss';
-import cn from 'classnames';
 import { CodeEditor } from "./CodeEditor";
+import styles from './KidLangEditor.module.scss';
 import { Renderer } from "./Renderer";
 
 export function KidLangEditor() {
   const [prog, setProg] = useState(window.localStorage.PROGRAM || '');
   const [output, setOutput] = useState('');
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     window.localStorage.PROGRAM = prog;
@@ -17,13 +16,14 @@ export function KidLangEditor() {
     <div className={styles.container}>
       <CodeEditor
         className={styles.editor}
+        error={error}
         code={prog}
         onCodeChange={code => setProg(code)}
       />
       <Renderer
         className={styles.renderer}
         onOutput={output => setOutput(output)}
-        onError={error => setOutput(error)}
+        onError={error => setError(error)}
         program={prog} />
       <pre className={styles.log}>
         {output}

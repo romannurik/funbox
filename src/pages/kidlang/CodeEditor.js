@@ -1,14 +1,46 @@
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import matColor from '../../material-colors';
+import styles from './KidLangEditor.module.scss';
 
-export function CodeEditor({ code, onCodeChange, ...props }) {
+export function CodeEditor({ code, error, onCodeChange, ...props }) {
   let [node, setNode] = useState(null);
+  let editor = useRef(null);
+
+  useEffect(() => {
+    if (!editor.current) {
+      return;
+    }
+    if (!error) {
+      monaco.editor.setModelMarkers(
+        editor.current.getModel(),
+        'main', []);
+      return;
+    }
+
+    const model = editor.current.getModel();
+    const position = model.getPositionAt(error.position);
+    monaco.editor.setModelMarkers(
+      editor.current.getModel(),
+      'main',
+      [
+        {
+          startLineNumber: position.lineNumber,
+          startColumn: position.column,
+          endLineNumber: position.lineNumber,
+          endColumn: position.column + 1,
+          message: 'hey there',
+          severity: monaco.MarkerSeverity.Error,
+          // code: 'hey',
+          // source: 'blah',
+        }
+      ]);
+  }, [error]);
 
   useEffect(() => {
     if (!node) return;
 
-    const editor = monaco.editor.create(node, {
+    editor.current = monaco.editor.create(node, {
       value: code,
       language: 'kid',
       minimap: {
@@ -22,16 +54,16 @@ export function CodeEditor({ code, onCodeChange, ...props }) {
       automaticLayout: true,
       theme: 'kid-theme',
     });
-    editor.updateOptions({
+    editor.current.updateOptions({
       tabSize: 2,
       detectIndentation: false,
       insertSpaces: true,
     });
-    const onEditSubscription = editor.onDidChangeModelContent(() => {
-      onCodeChange && onCodeChange(editor.getValue());
+    const onEditSubscription = editor.current.onDidChangeModelContent(() => {
+      onCodeChange && onCodeChange(editor.current.getValue());
     });
     return () => {
-      editor.dispose();
+      editor.current.dispose();
       onEditSubscription.dispose();
     }
   }, [node]);

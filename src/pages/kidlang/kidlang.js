@@ -34,6 +34,12 @@ const { parser, sem } = createParser();
 
 function run(program, onCommand) {
   const matchResult = parser.match(program);
+  if (matchResult.failed()) {
+    throw {
+      position: matchResult.getRightmostFailurePosition(),
+      message: matchResult.shortMessage,
+    };
+  }
   const context = { stdout: '', vars: makeInitialVars(), onCommand };
   sem(matchResult).eval(context);
   return context.stdout;

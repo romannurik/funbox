@@ -1,8 +1,5 @@
 import React, { useEffect, useState } from "react";
 import kid from "./kidlang";
-import styles from './KidLangEditor.module.scss';
-import cn from 'classnames';
-import { CodeEditor } from "./CodeEditor";
 
 const GRID_SIZE = 10;
 
@@ -78,13 +75,17 @@ export function Renderer({ program, onOutput, onError, ...props }) {
     try {
       onOutput(kid.run(program, (cmd, ...args) => {
         if (!API[cmd]) {
-          onError(`I don't know the command: "${cmd}"`);
+          throw {
+            position: 0,
+            message: `I don't know the command: "${cmd}"`
+          };
         }
 
         API[cmd](...args);
       }));
+      onError(null);
     } catch (e) {
-      onError(e.toString());
+      onError(e);
       console.error(e);
     }
     drawGridlines();
