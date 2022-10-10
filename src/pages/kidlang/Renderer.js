@@ -126,7 +126,7 @@ export function Renderer({ program, onOutput, onError, ...props }) {
       onError(null);
     } catch (e) {
       onError(e);
-      // console.error(e);
+      console.error(e);
     }
     drawGridlines();
 

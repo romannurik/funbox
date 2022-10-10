@@ -110,7 +110,7 @@ function setupMonaco() {
         [/[a-z]\w*/, "ident"],
         [/"[^"]*"/, "string"],
         [/#.*$/, "comment"],
-        [/\+|\=/, "operator"],
+        [/\+|\-|\=|\*|\//, "operator"],
       ],
     },
   });

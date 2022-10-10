@@ -17,8 +17,12 @@ const GRAMMAR = `
     
     Arg = Expr
     Expr
-      = Expr "+" PrimExpr  -- plus
-      | Expr "-" PrimExpr  -- minus
+      = Expr "+" MulExpr  -- plus
+      | Expr "-" MulExpr  -- minus
+      | MulExpr
+    MulExpr
+      = MulExpr "*" PrimExpr  -- mult
+      | MulExpr "/" PrimExpr  -- div
       | PrimExpr
     PrimExpr = Vector | number | string | varName
 
@@ -53,8 +57,10 @@ const AST_MAPPING = {
   FunctionStatement: mappingWithNodes({ funcName: 1, args: 2, body: 3 }),
   CommandStatement: mappingWithNodes({ command: 0, args: 1 }),
   CallStatement: mappingWithNodes({ funcName: 1, args: 2 }),
-  Expr_plus: mappingWithNodes({ type: "mathOp", exprLeft: 0, op: "+", exprRight: 2 }),
-  Expr_minus: mappingWithNodes({ type: "mathOp", exprLeft: 0, op: "-", exprRight: 2 }),
+  Expr_plus: mappingWithNodes({ type: "mathOp", exprLeft: 0, op: "add", exprRight: 2 }),
+  Expr_minus: mappingWithNodes({ type: "mathOp", exprLeft: 0, op: "subtract", exprRight: 2 }),
+  MulExpr_mult: mappingWithNodes({ type: "mathOp", exprLeft: 0, op: "multiply", exprRight: 2 }),
+  MulExpr_div: mappingWithNodes({ type: "mathOp", exprLeft: 0, op: "divide", exprRight: 2 }),
   Vector: mappingWithNodes({ val: 0, rowOrCol: 1 }),
   comment(_, __, ___) { return null; },
   varName(ident) { return { type: 'varName', varName: ident.sourceString, varNameNode: ident } },
@@ -140,13 +146,15 @@ const AST_ACTIONS = {
   async mathOp(context, { exprLeft, op, exprRight }) {
     const left = await evalNode(context, exprLeft);
     const right = await evalNode(context, exprRight);
-    let opFn = (op === '+') ? 'add' : 'subtract';
     if (left.type === 'vector') {
-      return left[opFn](right);
+      return left[op](right);
     } else if (right.type === 'vector') {
-      return right[opFn](left);
+      return right[op](left);
     }
-    return left + right;
+    if (op === 'add') return left + right;
+    if (op === 'subtract') return left - right;
+    if (op === 'multiply') return left * right;
+    if (op === 'divide') return left / right;
   },
   async Vector(context, { val, rowOrCol, }) {
     let isRow = rowOrCol === 'ROW' || rowOrCol === 'ROWS';
@@ -227,6 +235,16 @@ function vector(r, c) {
       return v.type === 'vector'
         ? vector(this.r - v.r, this.c - v.c)
         : vector(this.r - v, this.c - c);
+    },
+    multiply(v) {
+      return v.type === 'vector'
+        ? vector(this.r * v.r, this.c * v.c)
+        : vector(this.r * v, this.c * c);
+    },
+    divide(v) {
+      return v.type === 'vector'
+        ? vector(this.r / v.r, this.c / v.c)
+        : vector(this.r / v, this.c / c);
     },
     toString() { return `{${this.c};${this.r}}` }
   };
