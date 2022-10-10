@@ -74,30 +74,38 @@ function setupMonaco() {
     inherit: true,
     rules: [
       { background: "162b4b", token: "" },
-      { foreground: "7285b7", token: "comment" },
-      { foreground: matColor('pink', 'a100', true), token: "keyword" },
-      { foreground: matColor('cyan', '300', true), token: "ident" },
-      { foreground: matColor('blue-grey', '300'), token: "operator" },
+      { foreground: matColor('indigo', '300'), token: "comment" },
+      { foreground: matColor('pink', 'a100'), token: "keyword" },
+      { foreground: matColor('cyan', 'a400'), token: "ident" },
+      { foreground: matColor('indigo', '300'), token: "operator" },
       { foreground: matColor('deep-orange', 'a100'), token: "string" },
+      { foreground: matColor('green', 'a200'), token: "func-name" },
       { foreground: matColor('yellow', '600'), token: "number" },
     ],
     colors: {
-      "editor.foreground": "#FFFFFF",
-      "editor.background": "#162b4b",
-      "editor.selectionBackground": '#ffffff20',
+      "editor.foreground": "#ffffffff",
+      "editor.background": "#00000000",
+      "editor.selectionBackground": matColor('indigo', '500'),
+      "editor.inactiveSelectionBackground": '#ffffff20',
       "editor.lineHighlightBackground": "#ffffff10",
       "editorLineNumber.foreground": "#ffffff20",
       "editor.foldBackground": "#ffffffff",
-      "editorCursor.foreground": "#FFFFFF",
+      "editorCursor.foreground": "#ffffffff",
       "editorIndentGuide.background": "#ffffff10",
       "editorWhitespace.foreground": "#ffffff00"
     }
   });
   monaco.languages.register({ id: 'kid' });
+  monaco.languages.setLanguageConfiguration('kid', {
+    comments: {
+      lineComment: '#',
+    }
+  });
   monaco.languages.setMonarchTokensProvider('kid', {
     tokenizer: {
       root: [
         [/\d+|ROWS?|COLUMNS?/, "number"],
+        [/((?:FUNCTION|CALL)\s*)([a-z]\w*)/, ["keyword", "func-name"]],
         [/[A-Z]+/, "keyword"],
         [/[a-z]\w*/, "ident"],
         [/"[^"]*"/, "string"],

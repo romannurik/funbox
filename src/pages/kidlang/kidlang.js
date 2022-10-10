@@ -1,4 +1,4 @@
-import ohm from 'ohm-js';
+import ohm, { extras as ohmExtras } from 'ohm-js';
 
 const GRAMMAR = `
   KidLang {
@@ -6,7 +6,8 @@ const GRAMMAR = `
     Statement
       = (BlockStatement | SetStatement | CallStatement | CommandStatement) comment? -- withComment
       | comment  -- justComment
-    BlockStatement = RepeatStatement | FunctionStatement
+    BlockStatement = RepeatStatement | IfStatement | FunctionStatement
+    IfStatement = "IF" Expr Statement* "END"
     RepeatStatement = "REPEAT" Expr Statement* "END"
     FunctionStatement = "FUNCTION" ident ident* Statement* "END"
 
@@ -19,22 +20,154 @@ const GRAMMAR = `
       = Expr "+" PrimExpr  -- plus
       | Expr "-" PrimExpr  -- minus
       | PrimExpr
-    PrimExpr = Vector | number | string | ident
+    PrimExpr = Vector | number | string | varName
 
     Vector = number ("ROWS" | "ROW" | "COLUMNS" | "COLUMN")
     
-    comment = "#" (~"\\n" any)+ ("\\n" | end)
+    comment = "#" (~"\\n" any)* ("\\n" | end)
     reservedWord = "SET" | "REPEAT" | "END"
     command = ~reservedWord upper+
+    varName = ident
     ident = lower (lower | digit)*
     string = "\\"" (~\"\\"\" any)* "\\""
     number = digit+
   }
 `;
 
-const { parser, sem } = createParser();
+function mappingWithNodes(mapping) {
+  let mwn = { ...mapping };
+  for (let k in mapping) {
+    if (typeof mapping[k] === 'number') {
+      mwn[`${k}Node`] = c => c[mapping[k]];
+    }
+  }
+  return mwn;
+}
 
-function run(program, onCommand) {
+const AST_MAPPING = {
+  Statement: 0,
+  Statement_withComment: 0,
+  SetStatement: mappingWithNodes({ varName: 1, expr: 3 }),
+  IfStatement: mappingWithNodes({ condition: 1, body: 2 }),
+  RepeatStatement: mappingWithNodes({ numTimes: 1, body: 2 }),
+  FunctionStatement: mappingWithNodes({ funcName: 1, args: 2, body: 3 }),
+  CommandStatement: mappingWithNodes({ command: 0, args: 1 }),
+  CallStatement: mappingWithNodes({ funcName: 1, args: 2 }),
+  Expr_plus: mappingWithNodes({ type: "mathOp", exprLeft: 0, op: "+", exprRight: 2 }),
+  Expr_minus: mappingWithNodes({ type: "mathOp", exprLeft: 0, op: "-", exprRight: 2 }),
+  Vector: mappingWithNodes({ val: 0, rowOrCol: 1 }),
+  comment(_, __, ___) { return null; },
+  varName(ident) { return { type: 'varName', varName: ident.sourceString, varNameNode: ident } },
+  number(_) { return parseInt(this.sourceString); },
+  string(_, __, ___) { return JSON.parse(this.sourceString); },
+};
+
+const AST_ACTIONS = {
+  async SetStatement(context, { varName, expr }) {
+    context.vars[varName] = evalNode(context, expr);
+  },
+  async IfStatement(context, { condition, body }) {
+    condition = await evalNode(context, condition);
+    if (!!condition) {
+      await evalNode(context, body);
+    }
+  },
+  async RepeatStatement(context, { numTimes, body }) {
+    numTimes = await evalNode(context, numTimes);
+    for (let i = 0; i < numTimes; i++) {
+      await evalNode(context, body);
+    }
+  },
+  async FunctionStatement(context, { funcName, args, body }) {
+    context.funcs[funcName] = {
+      argNames: args,
+      body,
+    };
+  },
+  async CallStatement(context, { funcName, args, funcNameNode }) {
+    if (!(funcName in context.funcs)) {
+      throw {
+        position: funcNameNode.source.startIdx,
+        endPosition: funcNameNode.source.endIdx,
+        message: `Unknown function "${funcName}"`,
+      };
+    }
+
+    let { argNames, body } = context.funcs[funcName];
+    if (argNames.length !== args.length) {
+      throw {
+        position: funcNameNode.source.startIdx,
+        endPosition: funcNameNode.source.endIdx,
+        message: `Function "${funcName}" expects ${argNames.length} parameters (got ${args.length})`,
+      };
+    }
+
+    let params = {};
+    for (let i = 0; i < argNames.length; i++) {
+      params[argNames[i]] = await evalNode(context, args[i]);
+    }
+
+    let callContext = {
+      ...context,
+      vars: {
+        ...context.vars,
+        ...params,
+      }
+    };
+
+    await evalNode(callContext, body);
+  },
+  async CommandStatement(context, { command, commandNode, args, argsNode }) {
+    let argValues = [];
+    for (let arg of args) {
+      argValues.push(await evalNode(context, arg));
+    }
+    let pieces = [
+      command,
+      ...argValues,
+    ];
+    context.stdout += pieces.join(', ') + '\n';
+    try {
+      await context.onCommand(command, ...pieces.slice(1));
+    } catch (e) {
+      throw {
+        position: commandNode.source.startIdx,
+        endPosition: commandNode.source.endIdx,
+        message: e.message,
+      };
+    }
+  },
+  async mathOp(context, { exprLeft, op, exprRight }) {
+    const left = await evalNode(context, exprLeft);
+    const right = await evalNode(context, exprRight);
+    let opFn = (op === '+') ? 'add' : 'subtract';
+    if (left.type === 'vector') {
+      return left[opFn](right);
+    } else if (right.type === 'vector') {
+      return right[opFn](left);
+    }
+    return left + right;
+  },
+  async Vector(context, { val, rowOrCol, }) {
+    let isRow = rowOrCol === 'ROW' || rowOrCol === 'ROWS';
+    return vector(isRow ? val : 0, isRow ? 0 : val);
+  },
+  async varName(context, { varName, varNameNode }) {
+    if (!(varName in context.vars)) {
+      throw {
+        position: varNameNode.source.startIdx,
+        endPosition: varNameNode.source.endIdx,
+        message: `Unknown variable "${varName}"`,
+      };
+    }
+    return context.vars[varName];
+  },
+};
+
+const parser = ohm.grammar(GRAMMAR);
+
+async function run(program, onCommand) {
+
   const matchResult = parser.match(program);
   if (matchResult.failed()) {
     throw {
@@ -48,134 +181,39 @@ function run(program, onCommand) {
     funcs: makeInitialFuncs(),
     onCommand
   };
-  sem(matchResult).eval(context);
+  const ast = ohmExtras.toAST(matchResult, AST_MAPPING);
+  await evalNode(context, ast);
+  // sem(matchResult).eval(context);
   return context.stdout;
 }
 
-function createParser() {
-  const parser = ohm.grammar(GRAMMAR);
-  const sem = parser.createSemantics();
-  sem.addOperation('eval(context)', {
-    Statement_withComment(statement, _) {
-      return statement.eval(this.args.context);
-    },
-    SetStatement(_, varName, __, expr) {
-      this.args.context.vars[varName.sourceString] = expr.eval(this.args.context);
-    },
-    FunctionStatement(_, funcName, argNames, statements, __) {
-      this.args.context.funcs[funcName.sourceString] = {
-        argNames: argNames.children.map(node => node.sourceString),
-        statements,
-      };
-    },
-    CallStatement(_, funcName, args) {
-      if (!(funcName.sourceString in this.args.context.funcs)) {
-        throw {
-          position: this.source.startIdx,
-          endPosition: this.source.endIdx,
-          message: `Unknown function "${funcName.sourceString}"`,
-        };
-      }
-
-      let { argNames, statements } = this.args.context.funcs[funcName.sourceString];
-      if (argNames.length !== args.children.length) {
-        throw {
-          position: this.source.startIdx,
-          endPosition: this.source.endIdx,
-          message: `Function "${funcName.sourceString}" expects ${argNames.length} parameters (got ${args.children.length})`,
-        };
-      }
-
-      let params = {};
-      for (let i = 0; i < argNames.length; i++) {
-        params[argNames[i]] = args.children[i].eval(this.args.context);
-      }
-
-      let callContext = {
-        ...this.args.context,
-        vars: {
-          ...this.args.context.vars,
-          ...params,
-        }
-      };
-
-      statements.eval(callContext);
-    },
-    RepeatStatement(_, numTimesExpr, statements, __) {
-      let numTimes = numTimesExpr.eval(this.args.context);
-      for (let i = 0; i < numTimes; i++) {
-        statements.eval(this.args.context);
-      }
-    },
-    CommandStatement(command, args) {
-      let pieces = [
-        command.sourceString,
-        ...args.eval(this.args.context)
-      ];
-      this.args.context.stdout += pieces.join(', ') + '\n';
-      try {
-        this.args.context.onCommand(command.sourceString, ...pieces.slice(1));
-      } catch (e) {
-        throw {
-          position: this.source.startIdx,
-          endPosition: this.source.endIdx,
-          message: e.message,
-        };
-      }
-    },
-    Expr_plus(left, _, right) {
-      left = left.eval(this.args.context);
-      right = right.eval(this.args.context);
-      if (left.type === 'vector') {
-        return left.add(right);
-      } else if (right.type === 'vector') {
-        return right.add(left);
-      }
-      return left + right;
-    },
-    Expr_minus(left, _, right) {
-      left = left.eval(this.args.context);
-      right = right.eval(this.args.context);
-      if (left.type === 'vector') {
-        return left.subtract(right);
-      } else if (right.type === 'vector') {
-        return right.subtract(left);
-      }
-      return left - right;
-    },
-    Vector(num, rowOrCol) {
-      let length = num.eval(this.args.context);
-      let isRow = rowOrCol.sourceString === 'ROW' || rowOrCol.sourceString === 'ROWS';
-      return vector(isRow ? length : 0, isRow ? 0 : length);
-    },
-    comment(_, __, ___) {
-    },
-    ident(_, __) {
-      if (!(this.sourceString in this.args.context.vars)) {
-        throw {
-          position: this.source.startIdx,
-          endPosition: this.source.endIdx,
-          message: `Unknown variable "${this.sourceString}"`,
-        };
-      }
-      return this.args.context.vars?.[this.sourceString] || this.sourceString;
-    },
-    string(_, __, ___) {
-      return JSON.parse(this.sourceString);
-    },
-    number(_) {
-      return parseInt(this.sourceString);
-    },
-    _iter(...children) {
-      return children.map(c => c.eval(this.args.context));
+async function evalNode(context, node) {
+  // _iter
+  if (Array.isArray(node)) {
+    let results = [];
+    for (let child of node) {
+      results.push(await evalNode(context, child));
     }
-  });
-  return { parser, sem };
+    return results;
+  }
+
+  // _terminal
+  if (node == null || node.type == null) {
+    return node;
+  }
+
+  // _nonterminal
+  let astAction = AST_ACTIONS[node.type];
+  if (astAction) {
+    return await astAction(context, node);
+  }
+
+  throw new Error(`No action to interpret node of type "${node.type}"`);
 }
 
 function vector(r, c) {
-  console.assert(typeof r === 'number', 'Row is not a number');
-  console.assert(typeof c === 'number', 'Column is not a number');
+  console.assert(typeof r === 'number', `Row is not a number, got ${r}`);
+  console.assert(typeof c === 'number', `Column is not a number, got ${c}`);
   return {
     type: 'vector',
     r,
@@ -203,7 +241,7 @@ function makeInitialVars() {
       positions[String.fromCharCode(97 + c) + (r + 1)] = vector(r, c);
     }
   }
-  return { ...colors, ...positions };
+  return { ...colors, ...positions, stopsign: true };
 }
 
 function makeInitialFuncs() {

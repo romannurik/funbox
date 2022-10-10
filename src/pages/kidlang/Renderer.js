@@ -10,7 +10,7 @@ export function Renderer({ program, onOutput, onError, ...props }) {
   const containerRef = useRef(null);
   const [canvas, setCanvas] = useState(null);
 
-  useEffect(() => {
+  useEffect(async () => {
     if (!canvas || !containerRef.current) return;
     let size = Math.min(containerRef.current.offsetWidth, containerRef.current.offsetHeight) - MARGIN * 2;
     canvas.width = canvas.height = size * 2;
@@ -20,9 +20,6 @@ export function Renderer({ program, onOutput, onError, ...props }) {
     ctx.scale(cellSize, cellSize);
     ctx.translate(1, 1);
 
-    const assert = (assertion, message) => {
-      if (!assertion) throw new Error(message);
-    };
     const API = {
       LETTER(color, text, point) {
         ctx.scale(0.1, 0.1);
@@ -97,7 +94,7 @@ export function Renderer({ program, onOutput, onError, ...props }) {
 
     drawLabels();
     try {
-      onOutput(kid.run(program, (cmd, ...args) => {
+      await kid.run(program, async (cmd, ...args) => {
         if (!API[cmd]) {
           throw new Error(`I don't know the command: "${cmd}"`);
         }
@@ -119,17 +116,17 @@ export function Renderer({ program, onOutput, onError, ...props }) {
           }
         }
 
-
         try {
           ctx.save();
-          api.fn(...args);
+          await api.fn(...args);
         } finally {
           ctx.restore();
         }
-      }));
+      });
       onError(null);
     } catch (e) {
       onError(e);
+      // console.error(e);
     }
     drawGridlines();
 
