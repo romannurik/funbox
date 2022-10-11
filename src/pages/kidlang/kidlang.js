@@ -24,7 +24,7 @@ const GRAMMAR = `
       = MulExpr "*" PrimExpr  -- mult
       | MulExpr "/" PrimExpr  -- div
       | PrimExpr
-    PrimExpr = Vector | number | string | varName
+    PrimExpr = CallStatement | Vector | number | string | varName
 
     Vector = number ("ROWS" | "ROW" | "COLUMNS" | "COLUMN")
     
@@ -91,37 +91,47 @@ const AST_ACTIONS = {
     };
   },
   async CallStatement(context, { funcName, args, funcNameNode }) {
-    if (!(funcName in context.funcs)) {
-      throw {
-        position: funcNameNode.source.startIdx,
-        endPosition: funcNameNode.source.endIdx,
-        message: `Unknown function "${funcName}"`,
-      };
-    }
+    if (funcName in context.funcs) {
+      let { argNames, body } = context.funcs[funcName];
 
-    let { argNames, body } = context.funcs[funcName];
-    if (argNames.length !== args.length) {
-      throw {
-        position: funcNameNode.source.startIdx,
-        endPosition: funcNameNode.source.endIdx,
-        message: `Function "${funcName}" expects ${argNames.length} parameters (got ${args.length})`,
-      };
-    }
-
-    let params = {};
-    for (let i = 0; i < argNames.length; i++) {
-      params[argNames[i]] = await evalNode(context, args[i]);
-    }
-
-    let callContext = {
-      ...context,
-      vars: {
-        ...context.vars,
-        ...params,
+      if (argNames.length !== args.length) {
+        throw {
+          position: funcNameNode.source.startIdx,
+          endPosition: funcNameNode.source.endIdx,
+          message: `Function "${funcName}" expects ${argNames.length} parameters (got ${args.length})`,
+        };
       }
-    };
 
-    await evalNode(callContext, body);
+      let params = {};
+      for (let i = 0; i < argNames.length; i++) {
+        params[argNames[i]] = await evalNode(context, args[i]);
+      }
+
+      let callContext = {
+        ...context,
+        vars: {
+          ...context.vars,
+          ...params,
+        }
+      };
+
+      await evalNode(callContext, body);
+      return;
+
+    } else if (funcName in context.builtins) {
+      let params = [];
+      for (let i = 0; i < args.length; i++) {
+        params.push(await evalNode(context, args[i]));
+      }
+
+      return await context.builtins[funcName](...params);
+    }
+
+    throw {
+      position: funcNameNode.source.startIdx,
+      endPosition: funcNameNode.source.endIdx,
+      message: `Unknown function "${funcName}"`,
+    };
   },
   async CommandStatement(context, { command, commandNode, args, argsNode }) {
     let argValues = [];
@@ -174,8 +184,7 @@ const AST_ACTIONS = {
 
 const parser = ohm.grammar(GRAMMAR);
 
-async function run(program, onCommand) {
-
+async function run(program, globals, onCommand) {
   const matchResult = parser.match(program);
   if (matchResult.failed()) {
     throw {
@@ -185,8 +194,9 @@ async function run(program, onCommand) {
   }
   const context = {
     stdout: '',
-    vars: makeInitialVars(),
-    funcs: makeInitialFuncs(),
+    vars: globals?.vars || {},
+    funcs: {},
+    builtins: globals?.funcs || {},
     onCommand
   };
   const ast = ohmExtras.toAST(matchResult, AST_MAPPING);
@@ -219,7 +229,7 @@ async function evalNode(context, node) {
   throw new Error(`No action to interpret node of type "${node.type}"`);
 }
 
-function vector(r, c) {
+export function vector(r, c) {
   console.assert(typeof r === 'number', `Row is not a number, got ${r}`);
   console.assert(typeof c === 'number', `Column is not a number, got ${c}`);
   return {
@@ -248,26 +258,6 @@ function vector(r, c) {
     },
     toString() { return `{${this.c};${this.r}}` }
   };
-}
-
-function makeInitialVars() {
-  const colors = Object.fromEntries(namedColors().map(x => [x.toLocaleLowerCase(), x]));
-  const positions = {};
-  for (let r = 0; r < 10; r++) {
-    for (let c = 0; c < 10; c++) {
-      // e.g. a1 = {r:0,c:0}
-      positions[String.fromCharCode(97 + c) + (r + 1)] = vector(r, c);
-    }
-  }
-  return { ...colors, ...positions, stopsign: true };
-}
-
-function makeInitialFuncs() {
-  return {};
-}
-
-function namedColors() {
-  return ["AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque", "Black", "BlanchedAlmond", "Blue", "BlueViolet", "Brown", "BurlyWood", "CadetBlue", "Chartreuse", "Chocolate", "Coral", "CornflowerBlue", "Cornsilk", "Crimson", "Cyan", "DarkBlue", "DarkCyan", "DarkGoldenRod", "DarkGray", "DarkGrey", "DarkGreen", "DarkKhaki", "DarkMagenta", "DarkOliveGreen", "DarkOrange", "DarkOrchid", "DarkRed", "DarkSalmon", "DarkSeaGreen", "DarkSlateBlue", "DarkSlateGray", "DarkSlateGrey", "DarkTurquoise", "DarkViolet", "DeepPink", "DeepSkyBlue", "DimGray", "DimGrey", "DodgerBlue", "FireBrick", "FloralWhite", "ForestGreen", "Fuchsia", "Gainsboro", "GhostWhite", "Gold", "GoldenRod", "Gray", "Grey", "Green", "GreenYellow", "HoneyDew", "HotPink", "IndianRed", "Indigo", "Ivory", "Khaki", "Lavender", "LavenderBlush", "LawnGreen", "LemonChiffon", "LightBlue", "LightCoral", "LightCyan", "LightGoldenRodYellow", "LightGray", "LightGrey", "LightGreen", "LightPink", "LightSalmon", "LightSeaGreen", "LightSkyBlue", "LightSlateGray", "LightSlateGrey", "LightSteelBlue", "LightYellow", "Lime", "LimeGreen", "Linen", "Magenta", "Maroon", "MediumAquaMarine", "MediumBlue", "MediumOrchid", "MediumPurple", "MediumSeaGreen", "MediumSlateBlue", "MediumSpringGreen", "MediumTurquoise", "MediumVioletRed", "MidnightBlue", "MintCream", "MistyRose", "Moccasin", "NavajoWhite", "Navy", "OldLace", "Olive", "OliveDrab", "Orange", "OrangeRed", "Orchid", "PaleGoldenRod", "PaleGreen", "PaleTurquoise", "PaleVioletRed", "PapayaWhip", "PeachPuff", "Peru", "Pink", "Plum", "PowderBlue", "Purple", "RebeccaPurple", "Red", "RosyBrown", "RoyalBlue", "SaddleBrown", "Salmon", "SandyBrown", "SeaGreen", "SeaShell", "Sienna", "Silver", "SkyBlue", "SlateBlue", "SlateGray", "SlateGrey", "Snow", "SpringGreen", "SteelBlue", "Tan", "Teal", "Thistle", "Tomato", "Turquoise", "Violet", "Wheat", "White", "WhiteSmoke", "Yellow", "YellowGreen"];
 }
 
 export default { run };

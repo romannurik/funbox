@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import kid from "./kidlang";
+import kid, { vector } from "./kidlang";
 import styles from './KidLangEditor.module.scss';
 
 const GRID_SIZE = 10;
@@ -12,6 +12,7 @@ export function Renderer({ program, onOutput, onError, ...props }) {
 
   useEffect(async () => {
     if (!canvas || !containerRef.current) return;
+
     let size = Math.min(containerRef.current.offsetWidth, containerRef.current.offsetHeight) - MARGIN * 2;
     canvas.width = canvas.height = size * 2;
     canvas.style.width = canvas.style.height = `${size}px`;
@@ -94,7 +95,11 @@ export function Renderer({ program, onOutput, onError, ...props }) {
 
     drawLabels();
     try {
-      await kid.run(program, async (cmd, ...args) => {
+      const globals = {
+        vars: makeInitialVars(),
+        funcs: makeInitialFuncs(),
+      };
+      await kid.run(program, globals, async (cmd, ...args) => {
         if (!API[cmd]) {
           throw new Error(`I don't know the command: "${cmd}"`);
         }
@@ -173,4 +178,29 @@ export function Renderer({ program, onOutput, onError, ...props }) {
   return <div ref={containerRef} {...props}>
     <canvas ref={node => setCanvas(node)} />
   </div>;
+}
+
+function makeInitialVars() {
+  const colors = Object.fromEntries(namedColors().map(x => [x.toLocaleLowerCase(), x]));
+  const positions = {};
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 10; c++) {
+      // e.g. a1 = {r:0,c:0}
+      positions[String.fromCharCode(97 + c) + (r + 1)] = vector(r, c);
+    }
+  }
+  return { ...colors, ...positions, stopsign: true };
+}
+
+function makeInitialFuncs() {
+  const nc = namedColors();
+  return {
+    randomcolor: () => {
+      return nc[Math.floor(Math.random() * nc.length)].toLocaleLowerCase()
+    }
+  };
+}
+
+function namedColors() {
+  return ["AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque", "Black", "BlanchedAlmond", "Blue", "BlueViolet", "Brown", "BurlyWood", "CadetBlue", "Chartreuse", "Chocolate", "Coral", "CornflowerBlue", "Cornsilk", "Crimson", "Cyan", "DarkBlue", "DarkCyan", "DarkGoldenRod", "DarkGray", "DarkGrey", "DarkGreen", "DarkKhaki", "DarkMagenta", "DarkOliveGreen", "DarkOrange", "DarkOrchid", "DarkRed", "DarkSalmon", "DarkSeaGreen", "DarkSlateBlue", "DarkSlateGray", "DarkSlateGrey", "DarkTurquoise", "DarkViolet", "DeepPink", "DeepSkyBlue", "DimGray", "DimGrey", "DodgerBlue", "FireBrick", "FloralWhite", "ForestGreen", "Fuchsia", "Gainsboro", "GhostWhite", "Gold", "GoldenRod", "Gray", "Grey", "Green", "GreenYellow", "HoneyDew", "HotPink", "IndianRed", "Indigo", "Ivory", "Khaki", "Lavender", "LavenderBlush", "LawnGreen", "LemonChiffon", "LightBlue", "LightCoral", "LightCyan", "LightGoldenRodYellow", "LightGray", "LightGrey", "LightGreen", "LightPink", "LightSalmon", "LightSeaGreen", "LightSkyBlue", "LightSlateGray", "LightSlateGrey", "LightSteelBlue", "LightYellow", "Lime", "LimeGreen", "Linen", "Magenta", "Maroon", "MediumAquaMarine", "MediumBlue", "MediumOrchid", "MediumPurple", "MediumSeaGreen", "MediumSlateBlue", "MediumSpringGreen", "MediumTurquoise", "MediumVioletRed", "MidnightBlue", "MintCream", "MistyRose", "Moccasin", "NavajoWhite", "Navy", "OldLace", "Olive", "OliveDrab", "Orange", "OrangeRed", "Orchid", "PaleGoldenRod", "PaleGreen", "PaleTurquoise", "PaleVioletRed", "PapayaWhip", "PeachPuff", "Peru", "Pink", "Plum", "PowderBlue", "Purple", "RebeccaPurple", "Red", "RosyBrown", "RoyalBlue", "SaddleBrown", "Salmon", "SandyBrown", "SeaGreen", "SeaShell", "Sienna", "Silver", "SkyBlue", "SlateBlue", "SlateGray", "SlateGrey", "Snow", "SpringGreen", "SteelBlue", "Tan", "Teal", "Thistle", "Tomato", "Turquoise", "Violet", "Wheat", "White", "WhiteSmoke", "Yellow", "YellowGreen"];
 }
