@@ -2,6 +2,9 @@ import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import 'monaco-editor/esm/vs/editor/editor.all';
 import React, { useEffect, useRef, useState } from "react";
 import matColor from '../../material-colors';
+import { NAMED_COLORS, findNearestNamedColor } from './colors';
+import colornames from 'colornames';
+import tinycolor from 'tinycolor2';
 
 export function CodeEditor({ code, error, onCodeChange, ...props }) {
   let [node, setNode] = useState(null);
@@ -114,6 +117,40 @@ function setupMonaco() {
       ],
     },
   });
+  monaco.languages.registerColorProvider("kid", {
+    provideColorPresentations: (model, colorInfo) => {
+      let nearestNamedColor = findNearestNamedColor({
+        r: colorInfo.color.red * 255,
+        g: colorInfo.color.green * 255,
+        b: colorInfo.color.blue * 255
+      });
+      return [
+        {
+          label: "Change color",
+          textEdit: {
+            range: colorInfo.range,
+            text: nearestNamedColor,
+          },
+        }
+      ];
+    },
+    provideDocumentColors: (model) => {
+      let dc = [];
+      for (let c of NAMED_COLORS) {
+        let matches = model.findMatches('\\b' + c + '\\b', false, true);
+        let hex = colornames.get(c).value;
+        let { r, g, b } = tinycolor(hex).toRgb();
+        for (let m of matches) {
+          dc.push({
+            color: { red: r / 255, green: g / 255, blue: b / 255 },
+            range: m.range,
+          });
+        }
+      }
+      return dc;
+    }
+  })
+
 }
 
 setupMonaco();
