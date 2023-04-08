@@ -3,9 +3,10 @@
 }
 
 body {
+  --bg-color: #162b4b;
   font-family: Poppins;
   font-weight: 500;
-  background: #162b4b;
+  background: var(--bg-color);
   color: #eee;
   margin: 0;
 }

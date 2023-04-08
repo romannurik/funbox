@@ -1,33 +1,53 @@
+@use 'sass:color';
+
 .container {
-  width: 100vw;
-  height: 100vh;
-  padding: 20px;
-  gap: 10px;
+  width: calc(100vw - 40px);
+  height: calc(100vh - 40px);
+  margin: 20px; // margin not padding for splitter precision
   box-sizing: border-box;
-  display: grid;
-  grid-template:
-    'toolbar renderer' auto
-    'editor renderer' 1fr / 2fr 3fr;
+  display: flex;
+  color: var(--neutral-1);
+  $bgColor: #162b4b;
+  $fgColor: rgb(171, 225, 254);
+  --neutral-1: #{$fgColor};
+  --neutral-2: #{color.mix($bgColor, $fgColor, 10%)};
+  --neutral-3: #{color.mix($bgColor, $fgColor, 20%)};
+  --neutral-4: #{color.mix($bgColor, $fgColor, 30%)};
+  --neutral-5: #{color.mix($bgColor, $fgColor, 40%)};
+  --neutral-6: #{color.mix($bgColor, $fgColor, 50%)};
+  --neutral-7: #{color.mix($bgColor, $fgColor, 60%)};
+  --neutral-8: #{color.mix($bgColor, $fgColor, 70%)};
+  --neutral-9: #{color.mix($bgColor, $fgColor, 80%)};
+  --neutral-10: #{color.mix($bgColor, $fgColor, 90%)};
 }
 
-.editor,
-.log {
-  margin: 0;
-  border: 1px solid rgba(#fff, .2);
+.leftPane,
+.renderer {
+  min-width: 0;
+}
+
+.leftPane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: calc(1 / (1 - var(--split-position, 0.5)) - 1) 1 0;
 }
 
 .editor {
+  margin: 0;
+  border: 1px solid var(--neutral-8);
   grid-area: editor;
   min-height: 0;
-}
-
-.log {
-  grid-area: log;
-  display: none;
+  border-radius: 8px;
+  overflow: hidden;
+  flex: 1 1 0;
 }
 
 .renderer {
   grid-area: renderer;
+  flex: 1 1 0;
+  --label-color: var(--neutral-7);
+  --grid-color: var(--neutral-8);
 }
 
 .toolbar {
@@ -36,10 +56,11 @@
   flex-direction: row;
   gap: 8px;
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .programPicker {
-  box-shadow: 0 0 0 1px rgba(#fff, 0.2) inset;
+  box-shadow: 0 0 0 1px var(--neutral-8) inset;
   border-radius: 100px;
   position: relative;
   width: auto;
@@ -61,9 +82,10 @@
     padding: 0 44px;
     border-radius: 100px;
     appearance: none;
+    color: var(--neutral-1);
 
     option {
-      background-color: black;
+      background-color: var(--bg-color);
     }
   }
 
@@ -74,6 +96,21 @@
     transform: translate(0, -50%);
     width: 24px;
     height: 24px;
+    color: var(--neutral-5);
+  }
+
+  &:hover,
+  &:focus-within {
+    background-color: var(--neutral-10);
+    box-shadow: 0 0 0 1px var(--neutral-3) inset;
+
+    svg {
+      color: var(--neutral-1);
+    }
+  }
+
+  select:focus {
+    outline: var(--neutral-1);
   }
 
   select + svg {
@@ -84,7 +121,7 @@
 
 .iconButton {
   background: transparent;
-  color: white;
+  color: var(--neutral-5);
   width: 40px;
   height: 40px;
   padding: 8px;
@@ -93,4 +130,36 @@
   cursor: pointer;
   border: none;
   appearance: none;
+
+  &:hover,
+  &:focus {
+    background-color: var(--neutral-10);
+    color: var(--neutral-1);
+  }
+
+  &:focus {
+    outline: 1px solid var(--neutral-1);
+  }
+}
+
+.splitter {
+  position: relative;
+  grid-area: splitter;
+  width: 16px;
+  flex: 0 0 auto;
+  display: grid;
+  place-content: center;
+  cursor: -webkit-grab;
+
+  &:hover svg {
+    color: var(--netural-1);
+  }
+
+  svg {
+    pointer-events: none;
+    user-select: none;
+    color: var(--neutral-5);
+    width: 12px;
+    height: 12px;
+  }
 }

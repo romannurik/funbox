@@ -68,6 +68,10 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
       minimap: {
         enabled: false,
       },
+      padding: {
+        top: 16,
+        bottom: 16,
+      },
       wordBasedSuggestions: false,
       fontFamily: 'var(--font-family-code)',
       fontSize: 16,

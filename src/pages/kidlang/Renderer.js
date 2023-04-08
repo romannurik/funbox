@@ -10,26 +10,38 @@ const MARGIN = 10;
 export function Renderer({ program, onOutput, onError, ...props }) {
   const containerRef = useRef(null);
   const [canvas, setCanvas] = useState(null);
-  const [windowSize, setWindowSize] = useState(null);
+  const [containerSize, setContainerSize] = useState(null);
 
   useEffect(() => {
-    let onresize = () => {
-      setWindowSize(`${window.innerWidth}x${window.innerHeight}`);
-    };
-    window.addEventListener('resize', onresize);
-    return () => {
-      window.removeEventListener('resize', onresize);
+    if (!containerRef.current) {
+      return;
     }
-  }, []);
+
+    const resizeObserver = new ResizeObserver(() => {
+      setContainerSize(containerRef.current.offsetWidth + 'x' +
+        containerRef.current.offsetHeight);
+    });
+
+    resizeObserver.observe(containerRef.current);
+    return () => {
+      resizeObserver.disconnect();
+    }
+  }, [containerRef.current]);
 
   useEffect(async () => {
     if (!canvas || !containerRef.current) return;
 
+    let compStyle = window.getComputedStyle(containerRef.current);
+    let labelColor = compStyle.getPropertyValue('--label-color');
+    let gridColor = compStyle.getPropertyValue('--grid-color');
+
+    const PADDING = 3;
     let size = Math.min(containerRef.current.offsetWidth, containerRef.current.offsetHeight) - MARGIN * 2;
     canvas.width = canvas.height = size * 2;
     canvas.style.width = canvas.style.height = `${size}px`;
     let ctx = canvas.getContext('2d');
-    let cellSize = canvas.width / (GRID_SIZE + 1);
+    let cellSize = (canvas.width - 2 * PADDING) / (GRID_SIZE + 2);
+    ctx.translate(PADDING, PADDING);
     ctx.scale(cellSize, cellSize);
     ctx.translate(1, 1);
 
@@ -148,16 +160,15 @@ export function Renderer({ program, onOutput, onError, ...props }) {
     drawGridlines();
 
     function drawGridlines() {
-      drawGrid('rgba(255,255,255,.4)');
-      drawGrid('rgba(0,0,0,.25)');
+      drawGrid(gridColor);
     }
 
     function drawLabels() {
       ctx.save();
       ctx.scale(0.1, 0.1);
-      ctx.font = `6px ${CODE_FONT}`;
+      ctx.font = `4px ${CODE_FONT}`;
       for (let r = 0; r < GRID_SIZE; r++) {
-        ctx.fillStyle = 'rgba(255,255,255,.2)';
+        ctx.fillStyle = labelColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(
@@ -165,8 +176,16 @@ export function Renderer({ program, onOutput, onError, ...props }) {
           (r + 0.5) * 10,
           -0.5 * 10);
         ctx.fillText(
+          String.fromCharCode('A'.charCodeAt(0) + r),
+          (r + 0.5) * 10,
+          10.5 * 10);
+        ctx.fillText(
           (r + 1),
           -0.5 * 10,
+          (r + 0.5) * 10);
+        ctx.fillText(
+          (r + 1),
+          10.5 * 10,
           (r + 0.5) * 10);
       }
       ctx.restore();
@@ -185,7 +204,7 @@ export function Renderer({ program, onOutput, onError, ...props }) {
       ctx.closePath();
       ctx.stroke();
     }
-  }, [canvas, program, windowSize]);
+  }, [canvas, program, containerSize]);
 
   return <div ref={containerRef} {...props} style={{
     display: 'grid',
