@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import kid, { vector } from "./kidlang";
-import styles from './KidLangEditor.module.scss';
+import tinycolor from "tinycolor2";
 import { NAMED_COLORS } from "./colors";
+import kid, { vector } from "./kidlang";
 
 const GRID_SIZE = 10;
-const CODE_FONT = '"JetBrains Mono", monospace';
+const CODE_FONT = '"DM Mono", monospace';
 const MARGIN = 10;
 
 export function Renderer({ program, onOutput, onError, ...props }) {
@@ -118,6 +118,7 @@ export function Renderer({ program, onOutput, onError, ...props }) {
     };
 
     drawLabels();
+    drawGrid(gridColor);
     try {
       const globals = {
         vars: makeInitialVars(),
@@ -157,11 +158,7 @@ export function Renderer({ program, onOutput, onError, ...props }) {
       onError(e);
       console.error(e);
     }
-    drawGridlines();
-
-    function drawGridlines() {
-      drawGrid(gridColor);
-    }
+    drawGrid(tinycolor(gridColor).setAlpha(0.3).toRgbString());
 
     function drawLabels() {
       ctx.save();

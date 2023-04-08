@@ -1,11 +1,11 @@
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import colornames from 'colornames';
+import { diffChars } from 'diff';
 import 'monaco-editor/esm/vs/editor/editor.all';
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import React, { useEffect, useRef, useState } from "react";
+import tinycolor from 'tinycolor2';
 import matColor from '../../material-colors';
 import { NAMED_COLORS, findNearestNamedColor } from './colors';
-import colornames from 'colornames';
-import tinycolor from 'tinycolor2';
-import { MoonIcon } from '@primer/octicons-react';
 
 export function CodeEditor({ code, error, onCodeChange, ...props }) {
   let [node, setNode] = useState(null);
@@ -25,6 +25,7 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
     let curValue = model.getValue();
     if (curValue !== code) {
       model.setValue(code);
+      diffAndApply(model, code);
     }
   }, [code]);
 
@@ -65,6 +66,8 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
     editor.current = monaco.editor.create(node, {
       value: code,
       language: 'kid',
+      folding: false,
+      lineNumbersMinChars: 3,
       minimap: {
         enabled: false,
       },
@@ -178,6 +181,50 @@ function setupMonaco() {
         return dc;
       }
     }),
+    monaco.languages.registerCompletionItemProvider('kid', {
+      provideCompletionItems: function (model, position) {
+        return {
+          suggestions: [
+            {
+              kind: monaco.languages.CompletionItemKind.Keyword,
+              label: 'RECTANGLE',
+              insertText: 'RECTANGLE ${1:red} ${2:a1} ${3:j10}\n',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            },
+            {
+              kind: monaco.languages.CompletionItemKind.Keyword,
+              label: 'CIRCLE',
+              insertText: 'CIRCLE ${1:red} ${2:a1} ${3:j10}\n',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            },
+            {
+              kind: monaco.languages.CompletionItemKind.Keyword,
+              label: 'TEXT',
+              insertText: 'TEXT ${1:red} "${2:Hello}" ${3:a1}\n',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            },
+            {
+              kind: monaco.languages.CompletionItemKind.Keyword,
+              label: 'LETTER',
+              insertText: 'LETTER ${1:red} "${2:A}" ${3:a1}\n',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            },
+            {
+              kind: monaco.languages.CompletionItemKind.Keyword,
+              label: 'DOT',
+              insertText: 'DOT ${1:red} ${2:a1}\n',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            },
+            {
+              kind: monaco.languages.CompletionItemKind.Keyword,
+              label: 'FUNCTION',
+              insertText: 'FUNCTION ${1:hello} position\n  DOT red position\nEND\n\nCALL ${1:hello} a1\n',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            },
+          ]
+        };
+      }
+    }),
   );
 
   return () => {
@@ -185,4 +232,60 @@ function setupMonaco() {
       disposable?.dispose();
     }
   };
+}
+
+function diffAndApply(model, newCode) {
+  let curCode = model.getValue();
+  let ops = [];
+  let range = {
+    startLineNumber: 0,
+    startColumn: 0,
+    endLineNumber: 0,
+    endColumn: 0
+  };
+  let parts = diffChars(curCode, newCode);
+  for (let i = 0; i < parts.length; i++) {
+    let { count, value, added, removed } = parts[i];
+    if (added) {
+      ops.push({
+        range,
+        text: value
+      });
+      continue;
+    }
+
+    // removed or unchanged, update range
+    range.startLineNumber = range.endLineNumber;
+    range.startColumn = range.endColumn;
+    let [ln, col] = advance(value, range.startLineNumber, range.startColumn);
+    range.endLineNumber = ln;
+    range.endColumn = col;
+    if (removed) {
+      if (parts[i + 1]?.added) {
+        // remove + add
+        ops.push({ range, text: parts[i + 1].value });
+        ++i;
+      } else {
+        // just a remove
+        ops.push({ range, text: null });
+      }
+    }
+  }
+  model.applyEdits(ops);
+}
+
+function advance(str, startLineNumber, startColumn) {
+  let lineNumber = startLineNumber;
+  let idx = 0;
+  let lastNewline = -1;
+  while ((idx = str.indexOf('\n', idx)) >= 0) {
+    // found a newline
+    ++lineNumber;
+    ++idx; // move past the newline
+    lastNewline = idx;
+  }
+  let column = (lastNewline >= 0)
+    ? str.length - lastNewline
+    : startColumn + str.length;
+  return [lineNumber, column];
 }
