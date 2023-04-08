@@ -13,6 +13,7 @@ const NEW_PROGRAM = {
 
 const LAST_PROGRAM_LOCAL_STORAGE_KEY = 'lastprogram';
 const SPLITTER_LOCAL_STORAGE_KEY = 'splitter';
+const SESSION_ID = Math.floor(Math.random() * 899999 + 100000);
 
 export function KidLangEditor() {
   const [programs, setPrograms] = useState([]);
@@ -35,19 +36,18 @@ export function KidLangEditor() {
         }
         setCurrentProgram(program || programs[0]);
       } else {
-        // TODO: this should work via deltas, not setValue, otherwise
-        // the whole model blows up
-        // were there updates?
-        // let updatedProgram = programs.find(({ id }) => id === currentProgram.id);
-        // if (updatedProgram.code !== currentProgram.code ||
-        //   updatedProgram.name !== currentProgram.name) {
-        //   setCurrentProgram(updatedProgram);
-        // }
+        let updatedProgram = programs.find(({ id }) => id === currentProgram.id);
+        if (updatedProgram.lastEditedBy !== SESSION_ID) {
+          if (updatedProgram.code !== currentProgram.code ||
+            updatedProgram.name !== currentProgram.name) {
+            setCurrentProgram(updatedProgram);
+          }
+        }
       }
       first = false;
     });
     return () => unsub();
-  }, [/*currentProgram.id*/]);
+  }, [currentProgram.id]);
 
   useDebouncedEffect(() => {
     if (!currentProgram._edit) {
@@ -123,7 +123,12 @@ export function KidLangEditor() {
           error={error}
           code={currentProgram.code || ''}
           onCodeChange={async code => {
-            setCurrentProgram(prg => ({ ...prg, code, _edit: code !== NEW_PROGRAM.code }));
+            setCurrentProgram(prg => ({
+              ...prg,
+              code,
+              lastEditedBy: SESSION_ID,
+              _edit: code !== NEW_PROGRAM.code
+            }));
           }}
         />
       </div>

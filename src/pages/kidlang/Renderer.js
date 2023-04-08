@@ -6,6 +6,7 @@ import kid, { vector } from "./kidlang";
 const GRID_SIZE = 10;
 const CODE_FONT = '"DM Mono", monospace';
 const MARGIN = 10;
+const CORNER_RADIUS = 0.2;
 
 export function Renderer({ program, onOutput, onError, ...props }) {
   const containerRef = useRef(null);
@@ -18,8 +19,8 @@ export function Renderer({ program, onOutput, onError, ...props }) {
     }
 
     const resizeObserver = new ResizeObserver(() => {
-      setContainerSize(containerRef.current.offsetWidth + 'x' +
-        containerRef.current.offsetHeight);
+      setContainerSize(containerRef.current?.offsetWidth + 'x' +
+        containerRef.current?.offsetHeight);
     });
 
     resizeObserver.observe(containerRef.current);
@@ -119,46 +120,55 @@ export function Renderer({ program, onOutput, onError, ...props }) {
 
     drawLabels();
     drawGrid(gridColor);
-    try {
-      const globals = {
-        vars: makeInitialVars(),
-        funcs: makeInitialFuncs(),
-      };
-      await kid.run(program, globals, async (cmd, ...args) => {
-        if (!API[cmd]) {
-          throw new Error(`I don't know the command: "${cmd}"`);
-        }
-
-        let api = (typeof API[cmd] === 'function')
-          ? {
-            fn: API[cmd],
-            minArgs: API[cmd].length,
-            variadic: false,
-          } : API[cmd];
-
-        if (api.variadic) {
-          if (args.length < api.minArgs) {
-            throw new Error(`${cmd} expects at least ${api.minArgs} parameters`);
-          }
-        } else {
-          if (args.length !== api.minArgs) {
-            throw new Error(`${cmd} expects exactly ${api.minArgs} parameters`);
-          }
-        }
-
-        try {
-          ctx.save();
-          await api.fn(...args);
-        } finally {
-          ctx.restore();
-        }
-      });
-      onError(null);
-    } catch (e) {
-      onError(e);
-      console.error(e);
-    }
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(0, 0, GRID_SIZE, GRID_SIZE, CORNER_RADIUS);
+    ctx.clip();
+    await runProgram();
+    ctx.restore();
     drawGrid(tinycolor(gridColor).setAlpha(0.3).toRgbString());
+
+    async function runProgram() {
+      try {
+        const globals = {
+          vars: makeInitialVars(),
+          funcs: makeInitialFuncs(),
+        };
+        await kid.run(program, globals, async (cmd, ...args) => {
+          if (!API[cmd]) {
+            throw new Error(`I don't know the command: "${cmd}"`);
+          }
+
+          let api = (typeof API[cmd] === 'function')
+            ? {
+              fn: API[cmd],
+              minArgs: API[cmd].length,
+              variadic: false,
+            } : API[cmd];
+
+          if (api.variadic) {
+            if (args.length < api.minArgs) {
+              throw new Error(`${cmd} expects at least ${api.minArgs} parameters`);
+            }
+          } else {
+            if (args.length !== api.minArgs) {
+              throw new Error(`${cmd} expects exactly ${api.minArgs} parameters`);
+            }
+          }
+
+          try {
+            ctx.save();
+            await api.fn(...args);
+          } finally {
+            ctx.restore();
+          }
+        });
+        onError(null);
+      } catch (e) {
+        onError(e);
+        console.info('Program error:', e);
+      }
+    }
 
     function drawLabels() {
       ctx.save();
@@ -192,13 +202,13 @@ export function Renderer({ program, onOutput, onError, ...props }) {
       ctx.strokeStyle = color;
       ctx.lineWidth = 2 / cellSize;
       ctx.beginPath();
-      for (let r = 0; r < GRID_SIZE + 1; r++) {
+      for (let r = 1; r < GRID_SIZE; r++) {
         ctx.moveTo(r, 0);
         ctx.lineTo(r, GRID_SIZE);
         ctx.moveTo(0, r);
         ctx.lineTo(GRID_SIZE, r);
       }
-      ctx.closePath();
+      ctx.roundRect(0, 0, GRID_SIZE, GRID_SIZE, CORNER_RADIUS);
       ctx.stroke();
     }
   }, [canvas, program, containerSize]);

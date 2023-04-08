@@ -6,15 +6,17 @@ import React, { useEffect, useRef, useState } from "react";
 import tinycolor from 'tinycolor2';
 import matColor from '../../material-colors';
 import { NAMED_COLORS, findNearestNamedColor } from './colors';
+import snippets from './snippets';
 
 export function CodeEditor({ code, error, onCodeChange, ...props }) {
   let [node, setNode] = useState(null);
   let editor = useRef(null);
+  let pauseOnCodeChange = useRef(false);
   let onCodeChangeRef = useRef(onCodeChange);
 
   useEffect(() => {
-    let dispose = setupMonaco();
-    return () => dispose();
+    let disposeGlobal = setupMonaco();
+    return () => disposeGlobal();
   }, []);
 
   useEffect(() => {
@@ -24,8 +26,10 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
     let model = editor.current.getModel();
     let curValue = model.getValue();
     if (curValue !== code) {
-      model.setValue(code);
+      // model.setValue(code);
+      pauseOnCodeChange.current = true;
       diffAndApply(model, code);
+      pauseOnCodeChange.current = false;
     }
   }, [code]);
 
@@ -89,10 +93,14 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
       insertSpaces: true,
     });
     const onEditSubscription = editor.current.onDidChangeModelContent(() => {
+      if (pauseOnCodeChange.current) {
+        return;
+      }
       onCodeChangeRef.current && onCodeChangeRef.current(editor.current.getValue());
     });
     return () => {
       editor.current.dispose();
+      editor.current = null;
       onEditSubscription.dispose();
     }
   }, [node]);
@@ -184,44 +192,12 @@ function setupMonaco() {
     monaco.languages.registerCompletionItemProvider('kid', {
       provideCompletionItems: function (model, position) {
         return {
-          suggestions: [
-            {
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              label: 'RECTANGLE',
-              insertText: 'RECTANGLE ${1:red} ${2:a1} ${3:j10}\n',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            },
-            {
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              label: 'CIRCLE',
-              insertText: 'CIRCLE ${1:red} ${2:a1} ${3:j10}\n',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            },
-            {
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              label: 'TEXT',
-              insertText: 'TEXT ${1:red} "${2:Hello}" ${3:a1}\n',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            },
-            {
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              label: 'LETTER',
-              insertText: 'LETTER ${1:red} "${2:A}" ${3:a1}\n',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            },
-            {
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              label: 'DOT',
-              insertText: 'DOT ${1:red} ${2:a1}\n',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            },
-            {
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              label: 'FUNCTION',
-              insertText: 'FUNCTION ${1:hello} position\n  DOT red position\nEND\n\nCALL ${1:hello} a1\n',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            },
-          ]
+          suggestions: Object.entries(snippets).map(([label, insertText]) => ({
+            kind: monaco.languages.CompletionItemKind.Constant,
+            label,
+            insertText,
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          })),
         };
       }
     }),
@@ -238,43 +214,62 @@ function diffAndApply(model, newCode) {
   let curCode = model.getValue();
   let ops = [];
   let range = {
-    startLineNumber: 0,
-    startColumn: 0,
-    endLineNumber: 0,
-    endColumn: 0
+    startLineNumber: 1,
+    startColumn: 1,
+    endLineNumber: 1,
+    endColumn: 1
   };
   let parts = diffChars(curCode, newCode);
   for (let i = 0; i < parts.length; i++) {
     let { count, value, added, removed } = parts[i];
     if (added) {
       ops.push({
-        range,
+        range: { ...range },
+        forceMoveMarkers: true,
         text: value
       });
       continue;
     }
 
-    // removed or unchanged, update range
+    // found a removed or unchanged chunk of text, move the range
     range.startLineNumber = range.endLineNumber;
     range.startColumn = range.endColumn;
-    let [ln, col] = advance(value, range.startLineNumber, range.startColumn);
+    let [ln, col] = advanceLineNumberAndCol(value, range.startLineNumber, range.startColumn);
     range.endLineNumber = ln;
     range.endColumn = col;
+
     if (removed) {
       if (parts[i + 1]?.added) {
         // remove + add
-        ops.push({ range, text: parts[i + 1].value });
+        ops.push({
+          range: { ...range },
+          forceMoveMarkers: true,
+          text: parts[i + 1].value
+        });
         ++i;
       } else {
         // just a remove
-        ops.push({ range, text: null });
+        ops.push({
+          range: { ...range },
+          text: null
+        });
       }
     }
+
+    range.startLineNumber = range.endLineNumber;
+    range.startColumn = range.endColumn;
   }
-  model.applyEdits(ops);
+
+  try {
+    model.applyEdits(ops);
+  } catch (e) {
+    console.error(e);
+    // fallback to just forcing the value
+    model.setValue(newCode);
+  }
 }
 
-function advance(str, startLineNumber, startColumn) {
+function advanceLineNumberAndCol(str, startLineNumber, startColumn) {
   let lineNumber = startLineNumber;
   let idx = 0;
   let lastNewline = -1;
@@ -285,7 +280,7 @@ function advance(str, startLineNumber, startColumn) {
     lastNewline = idx;
   }
   let column = (lastNewline >= 0)
-    ? str.length - lastNewline
+    ? str.length - lastNewline + 1
     : startColumn + str.length;
   return [lineNumber, column];
 }

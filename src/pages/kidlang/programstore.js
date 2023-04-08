@@ -22,8 +22,8 @@ export function onPrograms(callback) {
     let programsById = snap.val() || {};
     let programs = [];
     for (let [id, program] of Object.entries(programsById)) {
-      let { code, name } = program;
-      programs.push({ id, code, name, });
+      let { code, name, ...meta } = program;
+      programs.push({ id, code, name, ...meta });
     }
     callback(programs);
   });
@@ -32,15 +32,15 @@ export function onPrograms(callback) {
   };
 }
 
-export async function saveProgram({ id, name, code }) {
+export async function saveProgram({ id, name, code, ...meta }) {
   name = name || 'A new program';
   code = code || '';
   if (!id) {
-    let programRef = await push(programsRef, { name, code });
+    let programRef = await push(programsRef, { name, code, ...meta });
     return { id: programRef.key, name, code };
   }
-  await set(child(programsRef, id), { name, code });
-  return { id, name, code };
+  await set(child(programsRef, id), { name, code, ...meta });
+  return { id, name, code, ...meta };
 }
 
 export async function deleteProgram(id) {
