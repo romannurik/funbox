@@ -20,6 +20,5 @@ export function findNearestNamedColor({ r, g, b }) {
       nearest = name;
     }
   }
-  console.log(nearest);
   return nearest;
 }

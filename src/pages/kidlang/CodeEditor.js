@@ -5,10 +5,32 @@ import matColor from '../../material-colors';
 import { NAMED_COLORS, findNearestNamedColor } from './colors';
 import colornames from 'colornames';
 import tinycolor from 'tinycolor2';
+import { MoonIcon } from '@primer/octicons-react';
 
 export function CodeEditor({ code, error, onCodeChange, ...props }) {
   let [node, setNode] = useState(null);
   let editor = useRef(null);
+  let onCodeChangeRef = useRef(onCodeChange);
+
+  useEffect(() => {
+    let dispose = setupMonaco();
+    return () => dispose();
+  }, []);
+
+  useEffect(() => {
+    if (!editor.current) {
+      return;
+    }
+    let model = editor.current.getModel();
+    let curValue = model.getValue();
+    if (curValue !== code) {
+      model.setValue(code);
+    }
+  }, [code]);
+
+  useEffect(() => {
+    onCodeChangeRef.current = onCodeChange;
+  }, [onCodeChange]);
 
   useEffect(() => {
     const model = editor.current?.getModel();
@@ -60,7 +82,7 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
       insertSpaces: true,
     });
     const onEditSubscription = editor.current.onDidChangeModelContent(() => {
-      onCodeChange && onCodeChange(editor.current.getValue());
+      onCodeChangeRef.current && onCodeChangeRef.current(editor.current.getValue());
     });
     return () => {
       editor.current.dispose();
@@ -72,6 +94,7 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
 }
 
 function setupMonaco() {
+  let disposables = [];
   monaco.editor.defineTheme('kid-theme', {
     base: "vs-dark",
     inherit: true,
@@ -99,58 +122,63 @@ function setupMonaco() {
     }
   });
   monaco.languages.register({ id: 'kid' });
-  monaco.languages.setLanguageConfiguration('kid', {
-    comments: {
-      lineComment: '#',
-    }
-  });
-  monaco.languages.setMonarchTokensProvider('kid', {
-    tokenizer: {
-      root: [
-        [/\d+|ROWS?|COLUMNS?/, "number"],
-        [/((?:FUNCTION|CALL)\s*)([a-z]\w*)/, ["keyword", "func-name"]],
-        [/[A-Z]+/, "keyword"],
-        [/[a-z]\w*/, "ident"],
-        [/"[^"]*"/, "string"],
-        [/#.*$/, "comment"],
-        [/\+|\-|\=|\*|\//, "operator"],
-      ],
-    },
-  });
-  monaco.languages.registerColorProvider("kid", {
-    provideColorPresentations: (model, colorInfo) => {
-      let nearestNamedColor = findNearestNamedColor({
-        r: colorInfo.color.red * 255,
-        g: colorInfo.color.green * 255,
-        b: colorInfo.color.blue * 255
-      });
-      return [
-        {
-          label: "Change color",
-          textEdit: {
-            range: colorInfo.range,
-            text: nearestNamedColor,
-          },
-        }
-      ];
-    },
-    provideDocumentColors: (model) => {
-      let dc = [];
-      for (let c of NAMED_COLORS) {
-        let matches = model.findMatches('\\b' + c + '\\b', false, true);
-        let hex = colornames.get(c).value;
-        let { r, g, b } = tinycolor(hex).toRgb();
-        for (let m of matches) {
-          dc.push({
-            color: { red: r / 255, green: g / 255, blue: b / 255 },
-            range: m.range,
-          });
-        }
+  disposables.push(
+    monaco.languages.setLanguageConfiguration('kid', {
+      comments: {
+        lineComment: '#',
       }
-      return dc;
+    }),
+    monaco.languages.setMonarchTokensProvider('kid', {
+      tokenizer: {
+        root: [
+          [/\d+|ROWS?|COLUMNS?/, "number"],
+          [/((?:FUNCTION|CALL)\s*)([a-z]\w*)/, ["keyword", "func-name"]],
+          [/[A-Z]+/, "keyword"],
+          [/[a-z]\w*/, "ident"],
+          [/"[^"]*"/, "string"],
+          [/#.*$/, "comment"],
+          [/\+|\-|\=|\*|\//, "operator"],
+        ],
+      },
+    }),
+    monaco.languages.registerColorProvider("kid", {
+      provideColorPresentations: (model, colorInfo) => {
+        let nearestNamedColor = findNearestNamedColor({
+          r: colorInfo.color.red * 255,
+          g: colorInfo.color.green * 255,
+          b: colorInfo.color.blue * 255
+        });
+        return [
+          {
+            label: "Change color",
+            textEdit: {
+              range: colorInfo.range,
+              text: nearestNamedColor,
+            },
+          }
+        ];
+      },
+      provideDocumentColors: (model) => {
+        let dc = [];
+        for (let c of NAMED_COLORS) {
+          let matches = model.findMatches('\\b' + c + '\\b', false, true);
+          let hex = colornames.get(c).value;
+          let { r, g, b } = tinycolor(hex).toRgb();
+          for (let m of matches) {
+            dc.push({
+              color: { red: r / 255, green: g / 255, blue: b / 255 },
+              range: m.range,
+            });
+          }
+        }
+        return dc;
+      }
+    }),
+  );
+
+  return () => {
+    for (let disposable of disposables) {
+      disposable?.dispose();
     }
-  })
-
+  };
 }
-
-setupMonaco();

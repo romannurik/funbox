@@ -10,6 +10,17 @@ const MARGIN = 10;
 export function Renderer({ program, onOutput, onError, ...props }) {
   const containerRef = useRef(null);
   const [canvas, setCanvas] = useState(null);
+  const [windowSize, setWindowSize] = useState(null);
+
+  useEffect(() => {
+    let onresize = () => {
+      setWindowSize(`${window.innerWidth}x${window.innerHeight}`);
+    };
+    window.addEventListener('resize', onresize);
+    return () => {
+      window.removeEventListener('resize', onresize);
+    }
+  }, []);
 
   useEffect(async () => {
     if (!canvas || !containerRef.current) return;
@@ -174,9 +185,12 @@ export function Renderer({ program, onOutput, onError, ...props }) {
       ctx.closePath();
       ctx.stroke();
     }
-  }, [canvas, program]);
+  }, [canvas, program, windowSize]);
 
-  return <div ref={containerRef} {...props}>
+  return <div ref={containerRef} {...props} style={{
+    display: 'grid',
+    placeContent: 'center',
+  }}>
     <canvas ref={node => setCanvas(node)} />
   </div>;
 }
