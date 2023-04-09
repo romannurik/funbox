@@ -165,7 +165,7 @@ function setupMonaco() {
         });
         return [
           {
-            label: "Change color",
+            label: nearestNamedColor,
             textEdit: {
               range: colorInfo.range,
               text: nearestNamedColor,

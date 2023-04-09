@@ -5,6 +5,7 @@ import styles from './KidLangEditor.module.scss';
 import { Renderer } from "./Renderer";
 import { deleteProgram, onPrograms, saveProgram } from "./programstore";
 import { CommandLine, DownChevron, Plus, Tag, Trash } from "./heroicons";
+import { Helmet } from "react-helmet";
 
 const NEW_PROGRAM = {
   name: 'A new program!',
@@ -19,16 +20,16 @@ export function KidLangEditor() {
   const [programs, setPrograms] = useState([]);
   const [currentProgram, setCurrentProgram] = useState({ ...NEW_PROGRAM });
   const [error, setError] = useState(null);
+  const firstRun = useRef(true);
   const [splitPosition, setSplitPosition] = useState(window.localStorage[SPLITTER_LOCAL_STORAGE_KEY] || 0.333);
 
   useEffect(() => {
-    let first = true;
     let unsub = onPrograms(programs => {
       if (!programs.length) {
         programs = [{ ...NEW_PROGRAM }];
       }
       setPrograms(programs);
-      if (first) {
+      if (firstRun.current) {
         let program = null;
         let lastProgramId = window.localStorage[LAST_PROGRAM_LOCAL_STORAGE_KEY];
         if (lastProgramId) {
@@ -37,14 +38,14 @@ export function KidLangEditor() {
         setCurrentProgram(program || programs[0]);
       } else {
         let updatedProgram = programs.find(({ id }) => id === currentProgram.id);
-        if (updatedProgram.lastEditedBy !== SESSION_ID) {
+        if (updatedProgram && updatedProgram.lastEditedBy !== SESSION_ID) {
           if (updatedProgram.code !== currentProgram.code ||
             updatedProgram.name !== currentProgram.name) {
             setCurrentProgram(updatedProgram);
           }
         }
       }
-      first = false;
+      firstRun.current = false;
     });
     return () => unsub();
   }, [currentProgram.id]);
@@ -62,7 +63,10 @@ export function KidLangEditor() {
     })();
   }, 1000, [currentProgram]);
 
-  return (
+  return <>
+    <Helmet>
+      <title>Kid Programming</title>
+    </Helmet>
     <div className={styles.container} style={{
       '--split-position': Math.max(0.25, Math.min(splitPosition, 0.75)),
     }}>
@@ -87,7 +91,7 @@ export function KidLangEditor() {
                   window.localStorage[LAST_PROGRAM_LOCAL_STORAGE_KEY] = selected;
                 }
               }}>
-              {!currentProgram.id && <option value="">-- New program --</option>}
+              {!currentProgram.id && <option value="">{NEW_PROGRAM.name}</option>}
               {programs.map(({ id, name }) =>
                 <option
                   key={id || '--'}
@@ -142,7 +146,7 @@ export function KidLangEditor() {
         onError={error => setError(error)}
         program={currentProgram.code} />
     </div>
-  );
+  </>;
 }
 
 function Splitter({ position, onChange }) {
