@@ -2,7 +2,7 @@ import ohm, { extras as ohmExtras } from 'ohm-js';
 
 const GRAMMAR = `
 KidLang {
-  Program = Statement*
+  Program = newline* Statement*
   Statement
     = (BlockStatement | SingleLineStatement) (comment | eol) -- withComment
     | comment  -- justComment
@@ -86,6 +86,7 @@ function mappingWithNodes(mapping) {
 }
 
 const AST_MAPPING = {
+  Program: 1,
   Statement: 0,
   Statement_withComment: 0,
   SetStatement: mappingWithNodes({ varName: 1, expr: 3 }),
