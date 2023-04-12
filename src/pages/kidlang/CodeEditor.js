@@ -71,6 +71,11 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
       value: code,
       language: 'kid',
       folding: false,
+      scrollbar: {
+        useShadows: false,
+        verticalHasArrows: true,
+        arrowSize: 24,
+      },
       lineNumbersMinChars: 3,
       minimap: {
         enabled: false,
@@ -117,10 +122,11 @@ function setupMonaco() {
       { background: "162b4b", token: "" },
       { foreground: matColor('indigo', '300'), token: "comment" },
       { foreground: matColor('pink', 'a100'), token: "keyword" },
+      { foreground: matColor('pink', 'a100'), token: "command" },
+      { foreground: matColor('green', 'a200'), token: "func-name" },
       { foreground: matColor('cyan', 'a400'), token: "ident" },
       { foreground: matColor('indigo', '300'), token: "operator" },
       { foreground: matColor('deep-orange', 'a100'), token: "string" },
-      { foreground: matColor('green', 'a200'), token: "func-name" },
       { foreground: matColor('yellow', '600'), token: "number" },
     ],
     colors: {
@@ -144,15 +150,17 @@ function setupMonaco() {
       }
     }),
     monaco.languages.setMonarchTokensProvider('kid', {
+      ignoreCase: true,
       tokenizer: {
         root: [
-          [/\d+|ROWS?|COLUMNS?/, "number"],
-          [/((?:FUNCTION|CALL)\s*)([a-z]\w*)/, ["keyword", "func-name"]],
-          [/[A-Z]+/, "keyword"],
+          [/\b\d+\b|true|false|rows?|columns?/, "number"],
+          [/((?:function|call)\s*)([a-z]\w*)/, ["keyword", "func-name"]],
+          [/\s*\b(set|repeat|if|else|function|end|call|and|or|not)\b\s*/, "keyword"],
+          [/^\s*[a-z]\w*/, "command"],
           [/[a-z]\w*/, "ident"],
           [/"[^"]*"/, "string"],
           [/#.*$/, "comment"],
-          [/\+|\-|\=|\*|\//, "operator"],
+          [/\+|\-|\=|\*|\/|\(|\)/, "operator"],
         ],
       },
     }),

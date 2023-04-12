@@ -1,42 +1,79 @@
 import ohm, { extras as ohmExtras } from 'ohm-js';
 
 const GRAMMAR = `
-  KidLang {
-    Program = Statement*
-    Statement
-      = (BlockStatement | SetStatement | CallStatement | CommandStatement) comment? -- withComment
-      | comment  -- justComment
-    BlockStatement = RepeatStatement | IfStatement | FunctionStatement
-    IfStatement = "IF" Expr Statement* "END"
-    RepeatStatement = "REPEAT" Expr Statement* "END"
-    FunctionStatement = "FUNCTION" ident ident* Statement* "END"
+KidLang {
+  Program = Statement*
+  Statement
+    = (BlockStatement | SingleLineStatement) (comment | eol) -- withComment
+    | comment  -- justComment
 
-    SetStatement = "SET" ident "=" Expr
-    CallStatement = "CALL" ident Expr*
-    CommandStatement = command Arg*
-    
-    Arg = Expr
-    Expr
-      = Expr "+" MulExpr  -- plus
-      | Expr "-" MulExpr  -- minus
-      | MulExpr
-    MulExpr
-      = MulExpr "*" PrimExpr  -- mult
-      | MulExpr "/" PrimExpr  -- div
-      | PrimExpr
-    PrimExpr = CallStatement | Vector | number | string | varName
+  End = caseInsensitive<"END">
+  BlockStatement = RepeatStatement | IfStatement | FunctionStatement
+  RepeatStatement = caseInsensitive<"REPEAT"> Expr newline Statement* End
+  IfStatement = caseInsensitive<"IF"> Expr newline Statement*
+    ElseIfStatement*
+    ElseStatement?
+    End
+  ElseIfStatement = caseInsensitive<"ELSE"> caseInsensitive<"IF"> Expr newline Statement*
+  ElseStatement = caseInsensitive<"ELSE"> newline Statement*
+  FunctionStatement = caseInsensitive<"FUNCTION"> ident ident* newline Statement* End
 
-    Vector = number ("ROWS" | "ROW" | "COLUMNS" | "COLUMN")
-    
-    comment = "#" (~"\\n" any)* ("\\n" | end)
-    reservedWord = "SET" | "REPEAT" | "END"
-    command = ~reservedWord upper+
-    varName = ident
-    ident = lower (lower | digit)*
-    string = "\\"" (~\"\\"\" any)* "\\""
-    number = digit+
-  }
+  SingleLineStatement = SetStatement | CallStatement | CommandStatement
+  SetStatement = caseInsensitive<"SET"> ident "=" Expr
+  CallStatement = caseInsensitive<"CALL"> ident Expr*
+  CommandStatement = command Arg*
+  
+  Arg = Expr
+  Expr
+    = Expr "+" MulExpr  -- plus
+    | Expr "-" MulExpr  -- minus
+    | MulExpr
+  MulExpr
+    = MulExpr "*" BoolExpr  -- mult
+    | MulExpr "/" BoolExpr  -- div
+    | BoolExpr
+  BoolExpr
+    = BoolExpr caseInsensitive<"AND"> PrimExpr  -- and
+    | BoolExpr caseInsensitive<"OR"> PrimExpr  -- or
+    | PrimExpr
+  PrimExpr
+    = "(" Expr ")"  -- paren
+    | PrimExpr "=" PrimExpr  -- equals
+    | "+" PrimExpr  -- positive
+    | "-" PrimExpr  -- negative
+    | caseInsensitive<"NOT"> PrimExpr  -- not
+    | CallExpr | Vector | Boolean | number | string | varName
+  CallExpr = "(" caseInsensitive<"CALL"> ident Expr* ")"
+  Boolean (true or false) = caseInsensitive<"TRUE"> | caseInsensitive<"FALSE">
+  Vector = number (caseInsensitive<"ROWS"> | caseInsensitive<"ROW"> | caseInsensitive<"COLUMNS"> | caseInsensitive<"COLUMN">)
+  
+  space := (" " | "\\t")
+  newline = "\\n" ("\\n" | space)*
+  eol = (newline | end)
+  reservedWord
+    = caseInsensitive<"SET">
+      | caseInsensitive<"REPEAT">
+      | caseInsensitive<"IF">
+      | caseInsensitive<"ELSE">
+      | caseInsensitive<"FUNCTION">
+      | caseInsensitive<"END">
+      | caseInsensitive<"CALL">
+      | caseInsensitive<"AND">
+      | caseInsensitive<"OR">
+      | caseInsensitive<"NOT">
+      | caseInsensitive<"TRUE">
+      | caseInsensitive<"FALSE">
+  comment (a comment) = "#" (~"\\n" any)* eol
+  command = ~reservedWord letter+
+  varName (a variable) = ident
+  ident (an identifier) = letter (letter | digit)*
+  string (a string) = "\\"" (~"\\"" any)* "\\""
+  number (a number) = digit+
+}
 `;
+
+const ZERO_VECTOR = vector(0, 0);
+const IDENTITY_VECTOR = vector(1, 1);
 
 function mappingWithNodes(mapping) {
   let mwn = { ...mapping };
@@ -52,30 +89,55 @@ const AST_MAPPING = {
   Statement: 0,
   Statement_withComment: 0,
   SetStatement: mappingWithNodes({ varName: 1, expr: 3 }),
-  IfStatement: mappingWithNodes({ condition: 1, body: 2 }),
-  RepeatStatement: mappingWithNodes({ numTimes: 1, body: 2 }),
-  FunctionStatement: mappingWithNodes({ funcName: 1, args: 2, body: 3 }),
+  IfStatement: mappingWithNodes({ condition: 1, body: 3, elseIfs: 4, else: 5 }),
+  ElseIfStatement: mappingWithNodes({ condition: 2, body: 4 }),
+  ElseStatement: mappingWithNodes({ body: 2 }),
+  RepeatStatement: mappingWithNodes({ numTimes: 1, body: 3 }),
+  FunctionStatement: mappingWithNodes({ funcName: 1, args: 2, body: 4 }),
   CommandStatement: mappingWithNodes({ command: 0, args: 1 }),
   CallStatement: mappingWithNodes({ funcName: 1, args: 2 }),
-  Expr_plus: mappingWithNodes({ type: "mathOp", exprLeft: 0, op: "add", exprRight: 2 }),
-  Expr_minus: mappingWithNodes({ type: "mathOp", exprLeft: 0, op: "subtract", exprRight: 2 }),
-  MulExpr_mult: mappingWithNodes({ type: "mathOp", exprLeft: 0, op: "multiply", exprRight: 2 }),
-  MulExpr_div: mappingWithNodes({ type: "mathOp", exprLeft: 0, op: "divide", exprRight: 2 }),
+  CallExpr: mappingWithNodes({ type: 'CallStatement', funcName: 2, args: 3 }),
+  Expr_plus: mappingWithNodes({ type: "binaryOp", exprLeft: 0, op: "add", exprRight: 2 }),
+  Expr_minus: mappingWithNodes({ type: "binaryOp", exprLeft: 0, op: "subtract", exprRight: 2 }),
+  MulExpr_mult: mappingWithNodes({ type: "binaryOp", exprLeft: 0, op: "multiply", exprRight: 2 }),
+  MulExpr_div: mappingWithNodes({ type: "binaryOp", exprLeft: 0, op: "divide", exprRight: 2 }),
+  BoolExpr_and: mappingWithNodes({ type: "binaryOp", exprLeft: 0, op: "and", exprRight: 2 }),
+  BoolExpr_or: mappingWithNodes({ type: "binaryOp", exprLeft: 0, op: "or", exprRight: 2 }),
+  PrimExpr_positive: mappingWithNodes({ type: "unaryOp", expr: 1, op: "positive" }),
+  PrimExpr_negative: mappingWithNodes({ type: "unaryOp", expr: 1, op: "negative" }),
+  PrimExpr_equals: mappingWithNodes({ type: "binaryOp", exprLeft: 0, op: "equals", exprRight: 2 }),
+  PrimExpr_not: mappingWithNodes({ type: "unaryOp", expr: 1, op: "not" }),
   Vector: mappingWithNodes({ val: 0, rowOrCol: 1 }),
   comment(_, __, ___) { return null; },
   varName(ident) { return { type: 'varName', varName: ident.sourceString, varNameNode: ident } },
+  Boolean(s) { return s.sourceString.toLocaleLowerCase() === "true"; },
   number(_) { return parseInt(this.sourceString); },
   string(_, __, ___) { return JSON.parse(this.sourceString); },
 };
 
 const AST_ACTIONS = {
   async SetStatement(context, { varName, expr }) {
-    context.vars[varName] = evalNode(context, expr);
+    context.vars[varName] = await evalNode(context, expr);
   },
-  async IfStatement(context, { condition, body }) {
+  async IfStatement(context, { condition, body, elseIfs, else: theElse }) {
     condition = await evalNode(context, condition);
     if (!!condition) {
       await evalNode(context, body);
+      return;
+    }
+
+    if (elseIfs.length) {
+      for (let { condition, body } of elseIfs) {
+        condition = await evalNode(context, condition);
+        if (!!condition) {
+          await evalNode(context, body);
+          return;
+        }
+      }
+    }
+
+    if (theElse) {
+      await evalNode(context, theElse.body);
     }
   },
   async RepeatStatement(context, { numTimes, body }) {
@@ -93,7 +155,6 @@ const AST_ACTIONS = {
   async CallStatement(context, { funcName, args, funcNameNode }) {
     if (funcName in context.funcs) {
       let { argNames, body } = context.funcs[funcName];
-
       if (argNames.length !== args.length) {
         throw {
           position: funcNameNode.source.startIdx,
@@ -115,8 +176,7 @@ const AST_ACTIONS = {
         }
       };
 
-      await evalNode(callContext, body);
-      return;
+      return await evalNode(callContext, body);
 
     } else if (funcName in context.builtins) {
       let params = [];
@@ -144,18 +204,25 @@ const AST_ACTIONS = {
     ];
     context.stdout += pieces.join(', ') + '\n';
     try {
-      await context.onCommand(command, ...pieces.slice(1));
+      await context.onCommand(command.toLocaleUpperCase(), ...pieces.slice(1));
     } catch (e) {
       throw {
         position: commandNode.source.startIdx,
-        endPosition: commandNode.source.endIdx,
+        endPosition: argsNode.source.endIdx,
         message: e.message,
       };
     }
   },
-  async mathOp(context, { exprLeft, op, exprRight }) {
+  async binaryOp(context, { exprLeft, exprLeftNode, op, exprRight, exprRightNode }) {
     const left = await evalNode(context, exprLeft);
     const right = await evalNode(context, exprRight);
+    if ((left.type === 'vector' || right.type === 'vector') && !(op in ZERO_VECTOR)) {
+      throw {
+        position: exprLeftNode.source.startIdx,
+        endPosition: exprRightNode.source.endIdx,
+        message: "Unknown operation on vectors",
+      };
+    }
     if (left.type === 'vector') {
       return left[op](right);
     } else if (right.type === 'vector') {
@@ -165,8 +232,29 @@ const AST_ACTIONS = {
     if (op === 'subtract') return left - right;
     if (op === 'multiply') return left * right;
     if (op === 'divide') return left / right;
+    if (op === 'and') return left && right;
+    if (op === 'or') return left || right;
+    if (op === 'equals') return left == right;
   },
-  async Vector(context, { val, rowOrCol, }) {
+  async unaryOp(context, { expr, exprNode, op }) {
+    const val = await evalNode(context, expr);
+    if (val.type === 'vector') {
+      if (op in val) {
+        return val[op];
+      } else {
+        throw {
+          position: exprNode.source.startIdx,
+          endPosition: exprNode.source.endIdx,
+          message: "Unknown operation on vector",
+        };
+      }
+    }
+    if (op === 'positive') return +val;
+    if (op === 'negative') return -val;
+    if (op === 'not') return !val;
+  },
+  async Vector(context, { val, rowOrCol }) {
+    rowOrCol = rowOrCol.toLocaleUpperCase();
     let isRow = rowOrCol === 'ROW' || rowOrCol === 'ROWS';
     return vector(isRow ? val : 0, isRow ? 0 : val);
   },
@@ -255,6 +343,9 @@ export function vector(r, c) {
       return v.type === 'vector'
         ? vector(this.r / v.r, this.c / v.c)
         : vector(this.r / v, this.c / c);
+    },
+    negative() {
+      return vector(-this.r, -this.c);
     },
     toString() { return `{${this.c};${this.r}}` }
   };
