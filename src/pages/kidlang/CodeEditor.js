@@ -1,12 +1,14 @@
 import colornames from 'colornames';
 import { diffChars } from 'diff';
-import 'monaco-editor/esm/vs/editor/editor.all';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import React, { useEffect, useRef, useState } from "react";
 import tinycolor from 'tinycolor2';
 import matColor from '../../material-colors';
 import { NAMED_COLORS, findNearestNamedColor } from './colors';
 import snippets from './snippets';
+
+// come after main import
+import 'monaco-editor/esm/vs/editor/editor.all';
 
 export function CodeEditor({ code, error, onCodeChange, ...props }) {
   let [node, setNode] = useState(null);

@@ -87,6 +87,22 @@ export function Renderer({ program, onOutput, onError, ...props }) {
           ctx.stroke();
         }
       },
+      POLYGON: {
+        variadic: true,
+        minArgs: 2,
+        fn: (color, p1, ...points) => {
+          ctx.strokeStyle = color;
+          ctx.fillStyle = 'transparent';
+          ctx.lineWidth = 0.2;
+          ctx.beginPath();
+          ctx.moveTo(p1.c + 0.5, p1.r + 0.5);
+          for (let p of points) {
+            ctx.lineTo(p.c + 0.5, p.r + 0.5);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        }
+      },
       DOT(color, point) {
         ctx.fillStyle = color;
         ctx.beginPath();

@@ -4,6 +4,7 @@ export default {
   text: `text \${1:crimson} "\${2:Hello}" \${3:a1}`,
   letter: `letter \${1:crimson} "\${2:A}" \${3:a1}`,
   line: `line \${1:crimson} a1 b2 a3 b4`,
+  polygon: `polygon \${1:crimson} a1 c1 c3 a3`,
   dot: `dot \${1:crimson} \${2:a1}`,
   if: `set hello = true
 if hello
