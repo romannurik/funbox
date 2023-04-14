@@ -155,14 +155,14 @@ function setupMonaco() {
       ignoreCase: true,
       tokenizer: {
         root: [
-          [/\b\d+\b|true|false|rows?|columns?/, "number"],
-          [/((?:function|call)\s*)([a-z]\w*)/, ["keyword", "func-name"]],
-          [/\s*\b(set|repeat|if|else|function|end|call|and|or|not)\b\s*/, "keyword"],
+          [/\b(\d*\.)?\d+\b|true|false|rows?|columns?/, "number"],
+          [/(\s*(?:function|call)\s*)([a-z]\w*)/, ["keyword", "func-name"]],
+          [/\s*\b(set|repeat|timer|if|else|function|end|call|and|or|not)\b\s*/, "keyword"],
           [/^\s*[a-z]\w*/, "command"],
           [/[a-z]\w*/, "ident"],
           [/"[^"]*"/, "string"],
           [/#.*$/, "comment"],
-          [/\+|\-|\=|\*|\/|\(|\)/, "operator"],
+          [/\+|\-|\=|\*|\/|\(|\)|<=?|>=?/, "operator"],
         ],
       },
     }),

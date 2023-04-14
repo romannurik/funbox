@@ -92,10 +92,12 @@ export function KidLangEditor() {
                 }
               }}>
               {!currentProgram.id && <option value="">{NEW_PROGRAM.name}</option>}
-              {programs.map(({ id, name }) =>
-                <option
-                  key={id || '--'}
-                  value={id}>{name}</option>)}
+              {programs
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                .map(({ id, name }) =>
+                  <option
+                    key={id || '--'}
+                    value={id}>{name}</option>)}
             </select>
             <DownChevron />
           </div>
@@ -115,7 +117,8 @@ export function KidLangEditor() {
             aria-label="Delete program"
             onClick={async () => {
               if (window.confirm('Really delete this?')) {
-                setCurrentProgram(programs[0] || { ...NEW_PROGRAM });
+                let nextProgram = programs.find(p => p.id !== currentProgram.id);
+                setCurrentProgram(nextProgram || { ...NEW_PROGRAM });
                 await deleteProgram(currentProgram.id);
               }
             }}>

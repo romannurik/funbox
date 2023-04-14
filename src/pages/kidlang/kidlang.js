@@ -1,79 +1,9 @@
 import ohm, { extras as ohmExtras } from 'ohm-js';
-
-const GRAMMAR = `
-KidLang {
-  Program = newline* Statement*
-  Statement
-    = (BlockStatement | SingleLineStatement) (comment | eol) -- withComment
-    | comment  -- justComment
-
-  End = caseInsensitive<"END">
-  BlockStatement = RepeatStatement | IfStatement | FunctionStatement
-  RepeatStatement = caseInsensitive<"REPEAT"> Expr newline Statement* End
-  IfStatement = caseInsensitive<"IF"> Expr newline Statement*
-    ElseIfStatement*
-    ElseStatement?
-    End
-  ElseIfStatement = caseInsensitive<"ELSE"> caseInsensitive<"IF"> Expr newline Statement*
-  ElseStatement = caseInsensitive<"ELSE"> newline Statement*
-  FunctionStatement = caseInsensitive<"FUNCTION"> ident ident* newline Statement* End
-
-  SingleLineStatement = SetStatement | CallStatement | CommandStatement
-  SetStatement = caseInsensitive<"SET"> ident "=" Expr
-  CallStatement = caseInsensitive<"CALL"> ident Expr*
-  CommandStatement = command Arg*
-  
-  Arg = Expr
-  Expr
-    = Expr "+" MulExpr  -- plus
-    | Expr "-" MulExpr  -- minus
-    | MulExpr
-  MulExpr
-    = MulExpr "*" BoolExpr  -- mult
-    | MulExpr "/" BoolExpr  -- div
-    | BoolExpr
-  BoolExpr
-    = BoolExpr caseInsensitive<"AND"> PrimExpr  -- and
-    | BoolExpr caseInsensitive<"OR"> PrimExpr  -- or
-    | PrimExpr
-  PrimExpr
-    = "(" Expr ")"  -- paren
-    | PrimExpr "=" PrimExpr  -- equals
-    | "+" PrimExpr  -- positive
-    | "-" PrimExpr  -- negative
-    | caseInsensitive<"NOT"> PrimExpr  -- not
-    | CallExpr | Vector | Boolean | number | string | varName
-  CallExpr = "(" caseInsensitive<"CALL"> ident Expr* ")"
-  Boolean (true or false) = caseInsensitive<"TRUE"> | caseInsensitive<"FALSE">
-  Vector = number (caseInsensitive<"ROWS"> | caseInsensitive<"ROW"> | caseInsensitive<"COLUMNS"> | caseInsensitive<"COLUMN">)
-  
-  space := (" " | "\\t")
-  newline = "\\n" ("\\n" | space)*
-  eol = (newline | end)
-  reservedWord
-    = caseInsensitive<"SET">
-      | caseInsensitive<"REPEAT">
-      | caseInsensitive<"IF">
-      | caseInsensitive<"ELSE">
-      | caseInsensitive<"FUNCTION">
-      | caseInsensitive<"END">
-      | caseInsensitive<"CALL">
-      | caseInsensitive<"AND">
-      | caseInsensitive<"OR">
-      | caseInsensitive<"NOT">
-      | caseInsensitive<"TRUE">
-      | caseInsensitive<"FALSE">
-  comment (a comment) = "#" (~"\\n" any)* eol
-  command = ~reservedWord letter+
-  varName (a variable) = ident
-  ident (an identifier) = letter (letter | digit)*
-  string (a string) = "\\"" (~"\\"" any)* "\\""
-  number (a number) = digit+
-}
-`;
+import GRAMMAR from './kidlang-grammar';
 
 const ZERO_VECTOR = vector(0, 0);
 const IDENTITY_VECTOR = vector(1, 1);
+const PARSER = ohm.grammar(GRAMMAR);
 
 function mappingWithNodes(mapping) {
   let mwn = { ...mapping };
@@ -94,6 +24,7 @@ const AST_MAPPING = {
   ElseIfStatement: mappingWithNodes({ condition: 2, body: 4 }),
   ElseStatement: mappingWithNodes({ body: 2 }),
   RepeatStatement: mappingWithNodes({ numTimes: 1, body: 3 }),
+  TimerStatement: mappingWithNodes({ frequency: 1, body: 3 }),
   FunctionStatement: mappingWithNodes({ funcName: 1, args: 2, body: 4 }),
   CommandStatement: mappingWithNodes({ command: 0, args: 1 }),
   CallStatement: mappingWithNodes({ funcName: 1, args: 2 }),
@@ -107,12 +38,16 @@ const AST_MAPPING = {
   PrimExpr_positive: mappingWithNodes({ type: "unaryOp", expr: 1, op: "positive" }),
   PrimExpr_negative: mappingWithNodes({ type: "unaryOp", expr: 1, op: "negative" }),
   PrimExpr_equals: mappingWithNodes({ type: "binaryOp", exprLeft: 0, op: "equals", exprRight: 2 }),
+  PrimExpr_gt: mappingWithNodes({ type: "binaryOp", exprLeft: 0, op: "gt", exprRight: 2 }),
+  PrimExpr_lt: mappingWithNodes({ type: "binaryOp", exprLeft: 0, op: "lt", exprRight: 2 }),
+  PrimExpr_gte: mappingWithNodes({ type: "binaryOp", exprLeft: 0, op: "gte", exprRight: 2 }),
+  PrimExpr_lte: mappingWithNodes({ type: "binaryOp", exprLeft: 0, op: "lte", exprRight: 2 }),
   PrimExpr_not: mappingWithNodes({ type: "unaryOp", expr: 1, op: "not" }),
   Vector: mappingWithNodes({ val: 0, rowOrCol: 1 }),
   comment(_, __, ___) { return null; },
   varName(ident) { return { type: 'varName', varName: ident.sourceString, varNameNode: ident } },
   Boolean(s) { return s.sourceString.toLocaleLowerCase() === "true"; },
-  number(_) { return parseInt(this.sourceString); },
+  number(_, __, ___) { return parseFloat(this.sourceString); },
   string(_, __, ___) { return JSON.parse(this.sourceString); },
 };
 
@@ -146,6 +81,16 @@ const AST_ACTIONS = {
     for (let i = 0; i < numTimes; i++) {
       await evalNode(context, body);
     }
+  },
+  async TimerStatement(context, { frequency, body }) {
+    frequency = await evalNode(context, frequency);
+    let handle = window.setInterval(() => {
+      evalNode(context, body).catch(context.onError);
+    }, Math.max(frequency * 1000, 100));
+    evalNode(context, body); // initial
+    context.stoppers.push(() => {
+      window.clearInterval(handle);
+    });
   },
   async FunctionStatement(context, { funcName, args, body }) {
     context.funcs[funcName] = {
@@ -203,7 +148,6 @@ const AST_ACTIONS = {
       command,
       ...argValues,
     ];
-    context.stdout += pieces.join(', ') + '\n';
     try {
       await context.onCommand(command.toLocaleUpperCase(), ...pieces.slice(1));
     } catch (e) {
@@ -236,6 +180,10 @@ const AST_ACTIONS = {
     if (op === 'and') return left && right;
     if (op === 'or') return left || right;
     if (op === 'equals') return left == right;
+    if (op === 'gt') return left > right;
+    if (op === 'lt') return left < right;
+    if (op === 'gte') return left >= right;
+    if (op === 'lte') return left <= right;
   },
   async unaryOp(context, { expr, exprNode, op }) {
     const val = await evalNode(context, expr);
@@ -271,53 +219,6 @@ const AST_ACTIONS = {
   },
 };
 
-const parser = ohm.grammar(GRAMMAR);
-
-async function run(program, globals, onCommand) {
-  const matchResult = parser.match(program);
-  if (matchResult.failed()) {
-    throw {
-      position: matchResult.getRightmostFailurePosition(),
-      message: matchResult.shortMessage,
-    };
-  }
-  const context = {
-    stdout: '',
-    vars: globals?.vars || {},
-    funcs: {},
-    builtins: globals?.funcs || {},
-    onCommand
-  };
-  const ast = ohmExtras.toAST(matchResult, AST_MAPPING);
-  await evalNode(context, ast);
-  // sem(matchResult).eval(context);
-  return context.stdout;
-}
-
-async function evalNode(context, node) {
-  // _iter
-  if (Array.isArray(node)) {
-    let results = [];
-    for (let child of node) {
-      results.push(await evalNode(context, child));
-    }
-    return results;
-  }
-
-  // _terminal
-  if (node == null || node.type == null) {
-    return node;
-  }
-
-  // _nonterminal
-  let astAction = AST_ACTIONS[node.type];
-  if (astAction) {
-    return await astAction(context, node);
-  }
-
-  throw new Error(`No action to interpret node of type "${node.type}"`);
-}
-
 export function vector(r, c) {
   console.assert(typeof r === 'number', `Row is not a number, got ${r}`);
   console.assert(typeof c === 'number', `Column is not a number, got ${c}`);
@@ -352,4 +253,125 @@ export function vector(r, c) {
   };
 }
 
-export default { run };
+async function evalNode(context, node) {
+  // _iter
+  if (Array.isArray(node)) {
+    let results = [];
+    for (let child of node) {
+      results.push(await evalNode(context, child));
+    }
+    return results;
+  }
+
+  // _terminal
+  if (node == null || node.type == null) {
+    return node;
+  }
+
+  // _nonterminal
+  let astAction = AST_ACTIONS[node.type];
+  if (astAction) {
+    return await astAction(context, node);
+  }
+
+  throw new Error(`No action to interpret node of type "${node.type}"`);
+}
+
+/**
+ * Converts a program to an abstract syntax tree, or throws
+ * if there was an error
+ */
+function programToAST(program) {
+  const matchResult = PARSER.match(program);
+  if (matchResult.failed()) {
+    throw {
+      position: matchResult.getRightmostFailurePosition(),
+      message: matchResult.shortMessage,
+    };
+  }
+  return ohmExtras.toAST(matchResult, AST_MAPPING);
+}
+
+/**
+ * Simply run the program and stop
+ */
+export async function run(program, globals, onCommand) {
+  const context = {
+    vars: globals?.vars || {},
+    funcs: {},
+    builtins: globals?.funcs || {},
+    onCommand
+  };
+  const ast = programToAST(program);
+  await evalNode(context, ast);
+}
+
+/**
+ * Starts a program, with support for events and timers; can be stopped
+ * at any time
+ */
+export function start(program, {
+  globals,
+  onCommand,
+  onError,
+}) {
+  const context = {
+    vars: globals?.vars || {},
+    funcs: {},
+    builtins: globals?.funcs || {},
+    stopped: false,
+    stoppers: [],
+    onError,
+    onCommand
+  };
+
+  try {
+    const ast = programToAST(program);
+    evalNode(context, ast).catch(onError);
+  } catch (e) {
+    onError(e);
+  }
+
+  return {
+    stop() {
+      context.stopped = true;
+      for (let stop of context.stoppers) {
+        stop();
+      }
+    },
+    async fireEvent(name, ...args) {
+      // call the function with the given name
+      if (!(name in context.funcs)) {
+        return;
+      }
+
+      let { argNames, body } = context.funcs[name];
+      if (argNames.length !== args.length) {
+        throw {
+          position: 0,
+          endPosition: 0,
+          message: `Function "${name}" expects ${argNames.length} parameters (got ${args.length})`,
+        };
+      }
+
+      let params = {};
+      for (let i = 0; i < argNames.length; i++) {
+        params[argNames[i]] = args[i];
+      }
+
+      let callContext = {
+        ...context,
+        vars: {
+          ...context.vars,
+          ...params,
+        }
+      };
+
+      try {
+        return await evalNode(callContext, body);
+      } catch (e) {
+        onError(e);
+      }
+    },
+  };
+}
