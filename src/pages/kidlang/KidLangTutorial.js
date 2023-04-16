@@ -5,9 +5,7 @@ import styles from './KidLangTutorial.module.scss';
 import { Renderer } from "./Renderer";
 import { SplitView } from "./SplitView";
 import ReactMarkdown from "react-markdown";
-import chp1 from '!!raw-loader!./tutorial/chapter1.md';
-
-let chp1Sections = chp1.split(/\s*---+\s*/ms);
+import content from './content';
 
 const TutorialCodeContext = React.createContext({});
 
@@ -18,9 +16,13 @@ function TutorialPreComponent({ ...props }) {
 }
 
 export function KidLangTutorial() {
-  let [code, setCode] = useState('');
+  let [chapterNumber, setChapterNumber] = useState(0);
+  let [pageNumber, setPageNumber] = useState(0);
+
+  let [previewCode, setPreviewCode] = useState('');
   let [error, setError] = useState(null);
-  let [sectionNumber, setSectionNumber] = useState(0);
+
+  let currentPageMarkdown = content[chapterNumber].pages[pageNumber];
 
   return <div className={styles.container}>
     <Helmet>
@@ -28,17 +30,23 @@ export function KidLangTutorial() {
     </Helmet>
     <TutorialCodeContext.Provider value={{
       error,
-      onCode: setCode
+      onCode: setPreviewCode
     }}>
       <SplitView
         className={styles.main}
         splitSaveKey="splitter"
         left={<>
-          {Array(chp1Sections.length).fill(0).map((_, idx) =>
-            <button key={idx} onClick={() => setSectionNumber(idx)}>Sec {idx}</button>
+          {content.map(({ pages }, c) =>
+            pages.map((_, p) =>
+              <button
+                key={`${p}.${c}`}
+                onClick={() => {
+                  setChapterNumber(c);
+                  setPageNumber(p);
+                }}>Chapter {c}, Page {p}</button>)
           )}
           <ReactMarkdown
-            children={chp1Sections[sectionNumber]}
+            children={currentPageMarkdown}
             components={{
               // If we make a dynamic function here it becomes a full re-render
               pre: TutorialPreComponent
@@ -49,7 +57,7 @@ export function KidLangTutorial() {
           <Renderer
             className={styles.renderer}
             onError={error => setError(error)}
-            program={code} />
+            program={previewCode} />
         }
       />
     </TutorialCodeContext.Provider>
