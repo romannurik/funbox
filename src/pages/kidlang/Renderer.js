@@ -1,9 +1,11 @@
+import cn from 'classnames';
+import emojiUnicode from "emoji-unicode";
+import { nameToEmoji } from 'gemoji';
 import React, { useEffect, useRef, useState } from "react";
 import tinycolor from "tinycolor2";
+import styles from './Renderer.module.scss';
 import { NAMED_COLORS } from "./colors";
 import { start, vector } from "./kidlang";
-import styles from './Renderer.module.scss';
-import cn from 'classnames';
 
 const GRID_SIZE = 10;
 const CODE_FONT = '"DM Mono", monospace';
@@ -197,7 +199,7 @@ function drawingApiForCanvas(ctx, onCommandRun) {
       ctx.clearRect(0, 0, GRID_SIZE, GRID_SIZE);
       onCommandRun();
     },
-    LETTER(color, text, point) {
+    LETTER(color, text, position) {
       ctx.scale(0.1, 0.1);
       ctx.font = `6px ${CODE_FONT}`;
       ctx.fillStyle = color;
@@ -205,8 +207,21 @@ function drawingApiForCanvas(ctx, onCommandRun) {
       ctx.textBaseline = 'middle';
       ctx.fillText(
         String(text || '').substring(0, 1),
-        point.c * 10 + 5,
-        point.r * 10 + 5);
+        position.c * 10 + 5,
+        position.r * 10 + 5);
+      onCommandRun();
+    },
+    async STAMP(text, position) {
+      let e = emojiUnicode(text).toLocaleLowerCase().replace(/ /g, '_');
+      let notoUrl = `https://raw.githubusercontent.com/googlefonts/noto-emoji/main/svg/emoji_u${e}.svg`;
+      let img = document.createElement('img');
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => reject(`"${text}" isn't a stamp!`);
+        img.src = notoUrl;
+      });
+      const PADDING = 0.1;
+      ctx.drawImage(img, position.c + PADDING, position.r + PADDING, 1 - PADDING * 2, 1 - PADDING * 2);
       onCommandRun();
     },
     TEXT(color, text, start) {
@@ -257,10 +272,10 @@ function drawingApiForCanvas(ctx, onCommandRun) {
         onCommandRun();
       }
     },
-    DOT(color, point) {
+    DOT(color, position) {
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.ellipse(point.c + 0.5, point.r + 0.5, 0.2, 0.2, 0, 0, Math.PI * 2);
+      ctx.ellipse(position.c + 0.5, position.r + 0.5, 0.2, 0.2, 0, 0, Math.PI * 2);
       ctx.closePath();
       ctx.fill();
       onCommandRun();
@@ -293,7 +308,9 @@ function drawingApiForCanvas(ctx, onCommandRun) {
 }
 
 function makeInitialVars() {
+  // colors
   const colors = Object.fromEntries(NAMED_COLORS.map(x => [x.toLocaleLowerCase(), x]));
+  // board positions
   const positions = {};
   for (let r = 0; r < GRID_SIZE; r++) {
     for (let c = 0; c < GRID_SIZE; c++) {
@@ -301,7 +318,21 @@ function makeInitialVars() {
       positions[String.fromCharCode(97 + c) + (r + 1)] = vector(r, c);
     }
   }
-  return { ...colors, ...positions, stopsign: true };
+
+  // emoji
+  let emoji = scrubEmoji(nameToEmoji);
+  return { ...colors, ...positions, ...emoji };
+}
+
+const BLOCKLIST_EMOJI = new Set(['poop', 'shit', 'hankey']);
+
+function scrubEmoji(emoji) {
+  let out = {};
+  for (let k in emoji) {
+    if (BLOCKLIST_EMOJI.has(k)) continue;
+    out[k.replace(/_/g, '')] = emoji[k];
+  }
+  return out;
 }
 
 function makeInitialFuncs() {

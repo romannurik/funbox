@@ -156,7 +156,7 @@ const AST_ACTIONS = {
       throw {
         position: commandNode.source.startIdx,
         endPosition: argsNode.source.endIdx,
-        message: e.message,
+        message: typeof e === 'string' ? e : e.message,
       };
     }
   },
