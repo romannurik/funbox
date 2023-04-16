@@ -2,11 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet";
 import { Route, BrowserRouter as Router, Switch } from "react-router-dom";
 import useDebouncedEffect from 'use-debounced-effect';
-import { KidLangEditor } from "./KidLangEditor";
-import styles from './KidLangEditor.module.scss';
-import { KidTutorial } from "./KidTutorial";
+import styles from './KidLangSandbox.module.scss';
+import { KidLangTutorial } from "./KidLangTutorial";
+import { SplitView } from "./SplitView";
 import { CommandLine, DownChevron, Plus, Tag, Trash } from "./heroicons";
 import { deleteProgram, onPrograms, saveProgram } from "./programstore";
+import { CodeEditor } from "./CodeEditor";
+import { Renderer } from "./Renderer";
 
 const NEW_PROGRAM = {
   name: 'A new program!',
@@ -19,6 +21,7 @@ const SESSION_ID = Math.floor(Math.random() * 899999 + 100000);
 export function KidLangSandbox() {
   const [programs, setPrograms] = useState([]);
   const [currentProgram, setCurrentProgram] = useState({ ...NEW_PROGRAM });
+  const [error, setError] = useState(null);
   const firstRun = useRef(true);
 
   useEffect(() => {
@@ -67,20 +70,14 @@ export function KidLangSandbox() {
     </Helmet>
     <Router>
       <Switch>
-        <Route path="/kidlang/tutorial" component={KidTutorial} />
+        <Route path="/kidlang/tutorial" component={KidLangTutorial} />
         <Route>
-          <KidLangEditor
-            code={currentProgram.code}
-            onChange={code => {
-              setCurrentProgram(prg => ({
-                ...prg,
-                code,
-                lastEditedBy: SESSION_ID,
-                _edit: code !== NEW_PROGRAM.code
-              }));
-            }}
-            toolbar={
-              <>
+          <SplitView
+            className={styles.container}
+            splitSaveKey="splitter"
+            defaultSplit={0.333}
+            left={<>
+              <div className={styles.toolbar}>
                 <button className={styles.iconButton}
                   title="New program"
                   aria-label="New program"
@@ -133,7 +130,27 @@ export function KidLangSandbox() {
                   }}>
                   <Trash />
                 </button>
-              </>
+              </div>
+              <CodeEditor
+                className={styles.editor}
+                error={error}
+                code={currentProgram.code || ''}
+                onCodeChange={code => {
+                  setCurrentProgram(prg => ({
+                    ...prg,
+                    code,
+                    lastEditedBy: SESSION_ID,
+                    _edit: code !== NEW_PROGRAM.code
+                  }));
+                }}
+              />
+            </>
+            }
+            right={
+              <Renderer
+                className={styles.renderer}
+                onError={error => setError(error)}
+                program={currentProgram.code || ''} />
             } />
         </Route>
       </Switch>

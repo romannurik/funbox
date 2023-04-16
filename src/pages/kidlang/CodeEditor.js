@@ -1,24 +1,42 @@
+import cn from 'classnames';
 import colornames from 'colornames';
 import { diffChars } from 'diff';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import React, { useEffect, useRef, useState } from "react";
 import tinycolor from 'tinycolor2';
 import matColor from '../../material-colors';
+import styles from './CodeEditor.module.scss';
 import { NAMED_COLORS, findNearestNamedColor } from './colors';
 import snippets from './snippets';
 
 // come after main import
 import 'monaco-editor/esm/vs/editor/editor.all';
 
-export function CodeEditor({ code, error, onCodeChange, ...props }) {
+let refCount = 0;
+let globalDispose;
+
+const VERT_PADDING = 16;
+
+export function CodeEditor({ fitHeight, style, className, code, error, onCodeChange, ...props }) {
   let [node, setNode] = useState(null);
   let editor = useRef(null);
   let pauseOnCodeChange = useRef(false);
+  let [contentHeight, setContentHeight] = useState(0);
   let onCodeChangeRef = useRef(onCodeChange);
 
   useEffect(() => {
-    let disposeGlobal = setupMonaco();
-    return () => disposeGlobal();
+    // shared globals across instances
+    if (refCount === 0) {
+      globalDispose = setupMonaco();
+    }
+    ++refCount;
+
+    return () => {
+      --refCount;
+      if (refCount === 0) {
+        globalDispose();
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -83,8 +101,8 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
         enabled: false,
       },
       padding: {
-        top: 16,
-        bottom: 16,
+        top: VERT_PADDING,
+        bottom: VERT_PADDING,
       },
       wordBasedSuggestions: false,
       fontFamily: 'var(--font-family-code)',
@@ -92,6 +110,7 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
       lineHeight: 22,
       fontLigatures: false,
       automaticLayout: true,
+      scrollBeyondLastLine: !fitHeight,
       theme: 'kid-theme',
     });
     editor.current.updateOptions({
@@ -105,14 +124,34 @@ export function CodeEditor({ code, error, onCodeChange, ...props }) {
       }
       onCodeChangeRef.current && onCodeChangeRef.current(editor.current.getValue());
     });
+
+    let ignoreEvent = false;
+    const onContentSizeSubscription = editor.current.onDidContentSizeChange(() => {
+      if (!fitHeight) {
+        return;
+      }
+      const contentHeight = editor.current.getContentHeight();
+      setContentHeight(contentHeight);
+      try {
+        ignoreEvent = true;
+        editor.current.layout({ width: node.offsetWidth, height: contentHeight });
+      } finally {
+        ignoreEvent = false;
+      }
+    });
+
     return () => {
       editor.current.dispose();
       editor.current = null;
       onEditSubscription.dispose();
+      onContentSizeSubscription.dispose();
     }
-  }, [node]);
+  }, [node, fitHeight]);
 
-  return <div {...props} ref={node => setNode(node)} />;
+  return <div className={cn(styles.editor, className)}
+    style={style}
+    ref={node => setNode(node)}
+    {...props} />;
 }
 
 function setupMonaco() {

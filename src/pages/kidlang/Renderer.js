@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import tinycolor from "tinycolor2";
 import { NAMED_COLORS } from "./colors";
-import { run, start, vector } from "./kidlang";
+import { start, vector } from "./kidlang";
+import styles from './Renderer.module.scss';
+import cn from 'classnames';
 
 const GRID_SIZE = 10;
 const CODE_FONT = '"DM Mono", monospace';
 const MARGIN = 10;
 const CORNER_RADIUS = 0.2;
 
-export function Renderer({ program, onOutput, onError, ...props }) {
+export function Renderer({ className, style, program, onOutput, onError, ...props }) {
   const containerRef = useRef(null);
   const runnerRef = useRef(null);
   const [runnerCanvas, setRunnerCanvas] = useState(null);
@@ -181,10 +183,7 @@ export function Renderer({ program, onOutput, onError, ...props }) {
     runnerRef.current.fireEvent('click', vector(r, c));
   }
 
-  return <div ref={containerRef} {...props} style={{
-    display: 'grid',
-    placeContent: 'center',
-  }}>
+  return <div ref={containerRef} className={cn(styles.renderer, className)} {...props}>
     <canvas ref={node => setCanvas(node)}
       onPointerDown={ev => mouseEvent(ev, 'down')}
       onPointerMove={ev => mouseEvent(ev, 'move')}

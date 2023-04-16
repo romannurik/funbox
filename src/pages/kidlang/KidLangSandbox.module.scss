@@ -1,5 +1,3 @@
-@use 'sass:color';
-
 .container {
   width: calc(100vw - 40px);
   height: calc(100vh - 40px);
@@ -7,46 +5,10 @@
   box-sizing: border-box;
   display: flex;
   color: var(--neutral-1);
-  $bgColor: #162b4b;
-  $fgColor: rgb(171, 225, 254);
-  --neutral-1: #{$fgColor};
-  --neutral-2: #{color.mix($bgColor, $fgColor, 10%)};
-  --neutral-3: #{color.mix($bgColor, $fgColor, 20%)};
-  --neutral-4: #{color.mix($bgColor, $fgColor, 30%)};
-  --neutral-5: #{color.mix($bgColor, $fgColor, 40%)};
-  --neutral-6: #{color.mix($bgColor, $fgColor, 50%)};
-  --neutral-7: #{color.mix($bgColor, $fgColor, 60%)};
-  --neutral-8: #{color.mix($bgColor, $fgColor, 70%)};
-  --neutral-9: #{color.mix($bgColor, $fgColor, 80%)};
-  --neutral-10: #{color.mix($bgColor, $fgColor, 90%)};
-}
-
-.leftPane,
-.renderer {
-  min-width: 0;
-}
-
-.leftPane {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  flex: calc(1 / (1 - var(--split-position, 0.5)) - 1) 1 0;
 }
 
 .editor {
-  margin: 0;
-  border: 1px solid var(--neutral-8);
-  grid-area: editor;
-  min-height: 0;
-  border-radius: 8px;
   flex: 1 1 0;
-}
-
-.renderer {
-  grid-area: renderer;
-  flex: 1 1 0;
-  --label-color: var(--neutral-7);
-  --grid-color: var(--neutral-8);
 }
 
 .toolbar {
@@ -56,6 +18,7 @@
   gap: 8px;
   align-items: center;
   flex: 0 0 auto;
+  margin-bottom: 12px;
 }
 
 .programPicker {
@@ -139,27 +102,5 @@
 
   &:focus {
     outline: 1px solid var(--neutral-1);
-  }
-}
-
-.splitter {
-  position: relative;
-  grid-area: splitter;
-  width: 16px;
-  flex: 0 0 auto;
-  display: grid;
-  place-content: center;
-  cursor: -webkit-grab;
-
-  &:hover svg {
-    color: var(--netural-1);
-  }
-
-  svg {
-    pointer-events: none;
-    user-select: none;
-    color: var(--neutral-5);
-    width: 12px;
-    height: 12px;
   }
 }

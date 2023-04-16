@@ -1,0 +1,7 @@
+.renderer {
+  --label-color: var(--neutral-7);
+  --grid-color: var(--neutral-8);
+  display: grid;
+  place-content: center;
+  height: 100%; // default
+}

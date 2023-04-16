@@ -1,0 +1,42 @@
+.splitView {
+  position: relative;
+  display: flex;
+}
+
+.left,
+.right {
+  min-width: 0;
+  position: relative;
+}
+
+.left {
+  display: flex;
+  flex-direction: column;
+  flex: calc(1 / (1 - var(--split-position, 0.5)) - 1) 1 0;
+}
+
+.right {
+  flex: 1 1 0;
+}
+
+.splitter {
+  position: relative;
+  grid-area: splitter;
+  width: 16px;
+  flex: 0 0 auto;
+  display: grid;
+  place-content: center;
+  cursor: -webkit-grab;
+
+  &:hover svg {
+    color: var(--netural-1);
+  }
+
+  svg {
+    pointer-events: none;
+    user-select: none;
+    color: var(--neutral-5);
+    width: 12px;
+    height: 12px;
+  }
+}

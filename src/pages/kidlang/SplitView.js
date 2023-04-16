@@ -1,49 +1,32 @@
 import React, { useRef, useState } from "react";
-import { CodeEditor } from "./CodeEditor";
-import styles from './KidLangEditor.module.scss';
-import { Renderer } from "./Renderer";
+import styles from './SplitView.module.scss';
+import cn from 'classnames';
 
-const SPLITTER_LOCAL_STORAGE_KEY = 'splitter';
+export function SplitView({ left, right, splitSaveKey, defaultSplit, className, ...props }) {
+  const [splitPosition, setSplitPosition] = useState(
+    (splitSaveKey ? window.localStorage[splitSaveKey] : null)
+    || defaultSplit
+    || 0.5);
 
-export function KidLangEditor({ toolbar, tutorialMode, code, onChange }) {
-  const [editedCode, setEditedCode] = useState(code);
-  const [error, setError] = useState(null);
-  const [splitPosition, setSplitPosition] = useState(window.localStorage[SPLITTER_LOCAL_STORAGE_KEY] || 0.333);
-
-  return <>
-    <div className={styles.container} style={{
+  return <div
+    className={cn(styles.splitView, className)}
+    style={{
       '--split-position': Math.max(0.25, Math.min(splitPosition, 0.75)),
-    }}>
-      <div className={styles.leftPane}>
-        {!!toolbar && <div className={styles.toolbar}>
-          {toolbar}
-        </div>}
-        <CodeEditor
-          className={styles.editor}
-          error={error}
-          code={(tutorialMode ? editedCode : code) || ''}
-          onCodeChange={code => {
-            onChange && onChange(code);
-            if (tutorialMode) {
-              setEditedCode(code);
-            }
-          }}
-        />
-      </div>
-      <Splitter position={splitPosition} onChange={pos => {
-        pos = pos.toFixed(3);
-        setSplitPosition(pos);
-        window.localStorage[SPLITTER_LOCAL_STORAGE_KEY] = pos;
-      }} />
-      <Renderer
-        className={styles.renderer}
-        onError={error => setError(error)}
-        program={(tutorialMode ? editedCode : code) || ''} />
-    </div>
-  </>;
+    }}
+    {...props}>
+    <div className={styles.left}>{left}</div>
+    <Splitter position={splitPosition} onChange={pos => {
+      pos = pos.toFixed(3);
+      setSplitPosition(pos);
+      if (splitSaveKey) {
+        window.localStorage[splitSaveKey] = pos;
+      }
+    }} />
+    <div className={styles.right}>{right}</div>
+  </div>;
 }
 
-function Splitter({ position, onChange }) {
+function Splitter({ onChange }) {
   let splitterRef = useRef(null);
 
   let handlePointerDown = ev => {
