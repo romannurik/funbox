@@ -53,7 +53,7 @@ const AST_MAPPING = {
 
 const AST_ACTIONS = {
   async SetStatement(context, { varName, expr }) {
-    context.vars[varName] = await evalNode(context, expr);
+    context.scope.updateOrSet(varName, await evalNode(context, expr));
   },
   async IfStatement(context, { condition, body, elseIfs, else: theElse }) {
     condition = await evalNode(context, condition);
@@ -93,14 +93,16 @@ const AST_ACTIONS = {
     });
   },
   async FunctionStatement(context, { funcName, args, body }) {
-    context.funcs[funcName] = {
+    context.scope.set(funcName, {
       argNames: args,
       body,
-    };
+    });
   },
   async CallStatement(context, { funcName, args, funcNameNode }) {
-    if (funcName in context.funcs) {
-      let { argNames, body } = context.funcs[funcName];
+    let fn = context.scope.get(funcName);
+    if (fn) {
+      // TODO: validate data type (that it's a function)
+      let { argNames, body } = fn;
       if (argNames.length !== args.length) {
         throw {
           position: funcNameNode.source.startIdx,
@@ -116,21 +118,11 @@ const AST_ACTIONS = {
 
       let callContext = {
         ...context,
-        vars: {
-          ...context.vars,
-          ...params,
-        }
+        scope: new Scope(params, context.scope)
       };
 
       return await evalNode(callContext, body);
 
-    } else if (funcName in context.builtins) {
-      let params = [];
-      for (let i = 0; i < args.length; i++) {
-        params.push(await evalNode(context, args[i]));
-      }
-
-      return await context.builtins[funcName](...params);
     }
 
     throw {
@@ -208,14 +200,14 @@ const AST_ACTIONS = {
     return vector(isRow ? val : 0, isRow ? 0 : val);
   },
   async varName(context, { varName, varNameNode }) {
-    if (!(varName in context.vars)) {
+    if (!context.scope.has(varName)) {
       throw {
         position: varNameNode.source.startIdx,
         endPosition: varNameNode.source.endIdx,
         message: `Unknown variable "${varName}"`,
       };
     }
-    return context.vars[varName];
+    return context.scope.get(varName);
   },
 };
 
@@ -293,20 +285,6 @@ function programToAST(program) {
 }
 
 /**
- * Simply run the program and stop
- */
-export async function run(program, globals, onCommand) {
-  const context = {
-    vars: globals?.vars || {},
-    funcs: {},
-    builtins: globals?.funcs || {},
-    onCommand
-  };
-  const ast = programToAST(program);
-  await evalNode(context, ast);
-}
-
-/**
  * Starts a program, with support for events and timers; can be stopped
  * at any time
  */
@@ -316,9 +294,7 @@ export function start(program, {
   onError,
 }) {
   const context = {
-    vars: globals?.vars || {},
-    funcs: {},
-    builtins: globals?.funcs || {},
+    scope: new Scope(globals),
     stopped: false,
     stoppers: [],
     onError,
@@ -335,17 +311,16 @@ export function start(program, {
   return {
     stop() {
       context.stopped = true;
-      for (let stop of context.stoppers) {
-        stop();
-      }
+      context.stoppers.forEach(s => s());
     },
     async fireEvent(name, ...args) {
       // call the function with the given name
-      if (!(name in context.funcs)) {
+      let fn = context.scope.get(name);
+      if (!fn) {
         return;
       }
 
-      let { argNames, body } = context.funcs[name];
+      let { argNames, body } = fn;
       if (argNames.length !== args.length) {
         throw {
           position: 0,
@@ -361,10 +336,7 @@ export function start(program, {
 
       let callContext = {
         ...context,
-        vars: {
-          ...context.vars,
-          ...params,
-        }
+        scope: new Scope(params, context.scope)
       };
 
       try {
@@ -374,4 +346,68 @@ export function start(program, {
       }
     },
   };
+}
+
+class Scope {
+  parent = null;
+  items = {};
+
+  constructor(items = {}, parent = null) {
+    this.parent = parent;
+    this.items = items || {};
+  }
+
+  // finds the scope containing the given item, or undefined if it doesn't exist
+  getScopeContaining(name) {
+    if (name in this.items) {
+      return this;
+    } else if (this.parent) {
+      return this.parent.getScopeContaining(name);
+    }
+    return undefined;
+  }
+
+  // returns true if the current item is defined in this or an ancestor scope
+  has(name) {
+    if (name in this.items) {
+      return true;
+    } else if (this.parent) {
+      return this.parent.has(name);
+    }
+    return false;
+  }
+
+  // gets the value for the given item in the current scope, or if not defined, ancestor scope,
+  // otherwise undefined
+  get(name) {
+    if (name in this.items) {
+      return this.items[name];
+    } else if (this.parent) {
+      return this.parent.get(name);
+    }
+    return undefined;
+  }
+
+  // if present in parent scopes, updates the value, otherwise defines it in current scope
+  updateOrSet(name, val) {
+    let scope = this.getScopeContaining(name);
+    if (scope) {
+      scope.set(name, val);
+      return;
+    }
+    this.set(name, val);
+  }
+
+  // forces [re]definition in current scope, even if the name is present in parent scopes
+  set(name, val) {
+    this.items[name] = val;
+  }
+
+  // removes the item from the current scope
+  unset(name, val, everywhere = false) {
+    delete this.items[name];
+    if (everywhere) {
+      this.parent.unset(name, val, true);
+    }
+  }
 }

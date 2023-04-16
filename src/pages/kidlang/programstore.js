@@ -76,7 +76,7 @@ const LOCAL = {
 }
 
 let STORE = FIRESTORE;
-// STORE = LOCAL;
+STORE = LOCAL;
 
 export function onPrograms(callback) {
   return STORE.onPrograms(callback);

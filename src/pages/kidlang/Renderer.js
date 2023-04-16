@@ -36,10 +36,6 @@ export function Renderer({ program, onOutput, onError, ...props }) {
   // Manage a program runner and off-screen runner canvas
   useEffect(() => {
     onError(null);
-    const globals = {
-      vars: makeInitialVars(),
-      funcs: makeInitialFuncs(),
-    };
     let ctx = document.createElement('canvas').getContext('2d');
     ctx.canvas.width = 1000; // TODO: dynamic
     ctx.canvas.height = 1000;
@@ -48,7 +44,10 @@ export function Renderer({ program, onOutput, onError, ...props }) {
     ctx.scale(cellSize, cellSize);
     let API = drawingApiForCanvas(ctx, () => setRerenderToken(t => t + 1));
     let r = runnerRef.current = start(program, {
-      globals,
+      globals: {
+        ...makeInitialVars(),
+        ...makeInitialFuncs(),
+      },
       onError(e) {
         onError(e);
         console.info('Program error:', e);
