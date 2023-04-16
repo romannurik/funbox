@@ -100,36 +100,46 @@ const AST_ACTIONS = {
   },
   async CallStatement(context, { funcName, args, funcNameNode }) {
     let fn = context.scope.get(funcName);
-    if (fn) {
-      // TODO: validate data type (that it's a function)
-      let { argNames, body } = fn;
-      if (argNames.length !== args.length) {
-        throw {
-          position: funcNameNode.source.startIdx,
-          endPosition: funcNameNode.source.endIdx,
-          message: `Function "${funcName}" expects ${argNames.length} parameters (got ${args.length})`,
-        };
-      }
-
-      let params = {};
-      for (let i = 0; i < argNames.length; i++) {
-        params[argNames[i]] = await evalNode(context, args[i]);
-      }
-
-      let callContext = {
-        ...context,
-        scope: new Scope(params, context.scope)
+    if (!fn) {
+      throw {
+        position: funcNameNode.source.startIdx,
+        endPosition: funcNameNode.source.endIdx,
+        message: `Unknown function "${funcName}"`,
       };
-
-      return await evalNode(callContext, body);
-
     }
 
-    throw {
-      position: funcNameNode.source.startIdx,
-      endPosition: funcNameNode.source.endIdx,
-      message: `Unknown function "${funcName}"`,
+    // TODO: validate data type (that it's a function)
+    if (typeof fn === 'function') {
+      // builtin function
+      let evaledArgs = [];
+      for (let i = 0; i < args.length; i++) {
+        evaledArgs[i] = await evalNode(context, args[i]);
+      }
+
+      return await fn(...args);
+    }
+
+    // custom-defined
+    let { argNames, body } = fn;
+    if (argNames.length !== args.length) {
+      throw {
+        position: funcNameNode.source.startIdx,
+        endPosition: funcNameNode.source.endIdx,
+        message: `Function "${funcName}" expects ${argNames.length} parameters (got ${args.length})`,
+      };
+    }
+
+    let params = {};
+    for (let i = 0; i < argNames.length; i++) {
+      params[argNames[i]] = await evalNode(context, args[i]);
+    }
+
+    let callContext = {
+      ...context,
+      scope: new Scope(params, context.scope)
     };
+
+    return await evalNode(callContext, body);
   },
   async CommandStatement(context, { command, commandNode, args, argsNode }) {
     let argValues = [];
