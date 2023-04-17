@@ -76,7 +76,9 @@ const LOCAL = {
 }
 
 let STORE = FIRESTORE;
-STORE = LOCAL;
+if (window.location.search.indexOf('localprograms') >= 0) {
+  STORE = LOCAL;
+}
 
 export function onPrograms(callback) {
   return STORE.onPrograms(callback);
