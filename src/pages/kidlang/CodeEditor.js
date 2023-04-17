@@ -7,6 +7,7 @@ import tinycolor from 'tinycolor2';
 import matColor from '../../material-colors';
 import styles from './CodeEditor.module.scss';
 import { NAMED_COLORS, findNearestNamedColor } from './colors';
+import { NAMED_EMOJI } from './emoji';
 import snippets from './snippets';
 
 // come after main import
@@ -21,7 +22,6 @@ export function CodeEditor({ fitHeight, style, className, code, error, onCodeCha
   let [node, setNode] = useState(null);
   let editor = useRef(null);
   let pauseOnCodeChange = useRef(false);
-  let [contentHeight, setContentHeight] = useState(0);
   let onCodeChangeRef = useRef(onCodeChange);
 
   useEffect(() => {
@@ -118,26 +118,28 @@ export function CodeEditor({ fitHeight, style, className, code, error, onCodeCha
       detectIndentation: false,
       insertSpaces: true,
     });
+
+    let emojiDecorations = editor.current.createDecorationsCollection([]);
+    redecorateEmoji(editor.current, emojiDecorations);
+
     const onEditSubscription = editor.current.onDidChangeModelContent(() => {
+      let code = editor.current.getValue();
+      // delta decorations
+      redecorateEmoji(editor.current, emojiDecorations);
       if (pauseOnCodeChange.current) {
         return;
       }
-      onCodeChangeRef.current && onCodeChangeRef.current(editor.current.getValue());
+      onCodeChangeRef.current && onCodeChangeRef.current(code);
     });
 
-    let ignoreEvent = false;
     const onContentSizeSubscription = editor.current.onDidContentSizeChange(() => {
       if (!fitHeight) {
         return;
       }
-      const contentHeight = editor.current.getContentHeight();
-      setContentHeight(contentHeight);
-      try {
-        ignoreEvent = true;
-        editor.current.layout({ width: node.offsetWidth, height: contentHeight });
-      } finally {
-        ignoreEvent = false;
-      }
+      editor.current.layout({
+        width: node.offsetWidth,
+        height: editor.current.getContentHeight()
+      });
     });
 
     return () => {
@@ -332,4 +334,44 @@ function advanceLineNumberAndCol(str, startLineNumber, startColumn) {
     ? str.length - lastNewline + 1
     : startColumn + str.length;
   return [lineNumber, column];
+}
+
+function redecorateEmoji(editor, collection) {
+  // This is too slow for now, since the emoji list is very large
+  return;
+  let model = editor.getModel();
+  let decorations = [];
+  for (let c in NAMED_EMOJI) {
+    let matches = model.findMatches('\\b' + c + '\\b', false, true);
+    let emoji = NAMED_EMOJI[c];
+    for (let m of matches) {
+      decorations.push({
+        range: m.range,
+        options: {
+          inlineClassName: "myInlineDecoration",
+          before: {
+            inlineClassName: 'hey',
+            inlineClassNameAffectsLetterSpacing: true,
+            content: emoji,
+            attachedData: c,
+            cursorStops: monaco.editor.InjectedTextCursorStops.Right
+          }
+        },
+      });
+    }
+  }
+  collection.set(decorations);
+
+  // editor.onMouseDown(e => {
+  //   document.querySelector('.output').innerHTML = JSON.stringify(e.target, null, 2) + '<br>';
+  //   if (e.target.type === monaco.editor.MouseTargetType.CONTENT_TEXT) {
+  //     let detail = e.target.detail;
+  //     if ('injectedText' in detail) {
+  //       alert(detail.injectedText.options.attachedData);
+  //       e.event.preventDefault();
+  //       e.event.stopPropagation();
+  //     }
+  //   }
+  // });
+
 }

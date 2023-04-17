@@ -1,10 +1,9 @@
 import cn from 'classnames';
-import emojiUnicode from "emoji-unicode";
-import { nameToEmoji } from 'gemoji';
 import React, { useEffect, useRef, useState } from "react";
 import tinycolor from "tinycolor2";
 import styles from './Renderer.module.scss';
 import { NAMED_COLORS } from "./colors";
+import { NAMED_EMOJI, emojiSvgUrl } from './emoji';
 import { start, vector } from "./kidlang";
 
 const GRID_SIZE = 10;
@@ -212,13 +211,12 @@ function drawingApiForCanvas(ctx, onCommandRun) {
       onCommandRun();
     },
     async STAMP(text, position) {
-      let e = emojiUnicode(text).toLocaleLowerCase().replace(/ /g, '_');
-      let notoUrl = `https://raw.githubusercontent.com/googlefonts/noto-emoji/main/svg/emoji_u${e}.svg`;
+      let svgUrl = emojiSvgUrl(text);
       let img = document.createElement('img');
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = () => reject(`"${text}" isn't a stamp!`);
-        img.src = notoUrl;
+        img.src = svgUrl;
       });
       const PADDING = 0.1;
       ctx.drawImage(img, position.c + PADDING, position.r + PADDING, 1 - PADDING * 2, 1 - PADDING * 2);
@@ -310,6 +308,7 @@ function drawingApiForCanvas(ctx, onCommandRun) {
 function makeInitialVars() {
   // colors
   const colors = Object.fromEntries(NAMED_COLORS.map(x => [x.toLocaleLowerCase(), x]));
+
   // board positions
   const positions = {};
   for (let r = 0; r < GRID_SIZE; r++) {
@@ -320,20 +319,10 @@ function makeInitialVars() {
   }
 
   // emoji
-  let emoji = scrubEmoji(nameToEmoji);
+  let emoji = NAMED_EMOJI;
   return { ...colors, ...positions, ...emoji };
 }
 
-const BLOCKLIST_EMOJI = new Set(['poop', 'shit', 'hankey']);
-
-function scrubEmoji(emoji) {
-  let out = {};
-  for (let k in emoji) {
-    if (BLOCKLIST_EMOJI.has(k)) continue;
-    out[k.replace(/_/g, '')] = emoji[k];
-  }
-  return out;
-}
 
 function makeInitialFuncs() {
   const nc = NAMED_COLORS;

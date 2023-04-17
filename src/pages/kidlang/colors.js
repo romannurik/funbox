@@ -6,6 +6,7 @@ const validColors = colornames.all().filter(c => !!c.css);
 export const NAMED_COLORS = validColors.map(c => c.name);
 
 const COLOR_RGB = {};
+
 for (let k of validColors) {
   COLOR_RGB[k.name] = tinycolor(k.value).toRgb();
 }
