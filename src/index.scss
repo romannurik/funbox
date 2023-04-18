@@ -1,11 +1,12 @@
 @use 'sass:color';
 
 :root {
+  --font-family-body: 'Poppins';
   --font-family-code: 'DM Mono', monospace;
 }
 
 body {
-  font-family: Poppins;
+  font-family: var(--font-family-body), serif;
   font-weight: 500;
   background: var(--bg-color);
   color: var(--neutral-1);
@@ -25,8 +26,7 @@ body {
   --neutral-10: #{color.mix($bgColor, $fgColor, 90%)};
 }
 
-b,
-bold {
+b {
   font-weight: 700;
 }
 
